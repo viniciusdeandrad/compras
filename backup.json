@@ -1,0 +1,15 @@
+{
+  "produtos": [],
+  "engenharia": {},
+  "insumos": {},
+  "venda": {},
+  "estoquePA": {},
+  "pedidos": [],
+  "kitsCompartilhados": null,
+  "kitOverrides": {},
+  "followupBase": [],
+  "followup": {},
+  "lastUpdate": { "venda": null, "insumos": null, "suply": null, "estoquePA": null, "followup": null },
+  "exportedAt": null,
+  "version": 3
+}

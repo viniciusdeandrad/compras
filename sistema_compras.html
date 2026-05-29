@@ -1,0 +1,3750 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compras — Sistema de Gestão de Insumos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0b;
+    --bg-elevated: #111113;
+    --bg-card: #161618;
+    --bg-overlay: #1d1d20;
+    --border: #2a2a2e;
+    --border-soft: #1f1f22;
+    --text: #f5f5f7;
+    --text-muted: #9a9aa3;
+    --text-dim: #5e5e66;
+    --accent: #c9a861;
+    --accent-strong: #d4b572;
+    --critical: #e11d2a;
+    --critical-bg: #2a0a0d;
+    --warn: #d4a559;
+    --warn-bg: #2a1f10;
+    --ok: #10b981;
+    --ok-bg: #0e2620;
+    --info: #6b9bd4;
+    --info-bg: #0e1a2a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-size: 14px;
+    letter-spacing: -0.005em;
+    line-height: 1.5;
+    min-height: 100vh;
+    background-image:
+      radial-gradient(circle at 0% 0%, rgba(201, 168, 97, 0.04) 0%, transparent 50%),
+      radial-gradient(circle at 100% 100%, rgba(225, 29, 42, 0.025) 0%, transparent 50%);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+
+  /* HEADER */
+  .header {
+    border-bottom: 1px solid var(--border);
+    background: #000;
+    padding: 14px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(12px);
+    gap: 12px;
+  }
+  .header-left { display: flex; align-items: center; gap: 18px; min-width: 0; }
+  .logo {
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--text);
+  }
+  .logo-mark { color: var(--accent); font-family: 'JetBrains Mono', monospace; margin-right: 10px; }
+  .breadcrumb {
+    color: var(--text-dim);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .header-right { display: flex; gap: 10px; align-items: center; font-size: 12px; color: var(--text-dim); flex-shrink: 0; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); display: inline-block; margin-right: 6px; }
+  .last-update { display: flex; gap: 10px; font-size: 11px; }
+
+  /* DRAWER */
+  .drawer-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+    z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .drawer-backdrop.show { opacity: 1; pointer-events: auto; }
+  .drawer {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    width: 280px; background: var(--bg-elevated);
+    border-right: 1px solid var(--border);
+    z-index: 201; transform: translateX(-100%); transition: transform 0.25s;
+    overflow-y: auto;
+    padding: 18px 12px;
+  }
+  .drawer.show { transform: translateX(0); }
+  .drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 0 10px 14px 10px; border-bottom: 1px solid var(--border-soft); margin-bottom: 12px; }
+  .drawer-close { background: none; border: none; color: var(--text-muted); font-size: 24px; cursor: pointer; line-height: 1; padding: 0 8px; }
+  .drawer-close:hover { color: var(--text); }
+  .drawer-section-title {
+    font-size: 10px; color: var(--text-dim); text-transform: uppercase;
+    letter-spacing: 0.15em; font-weight: 600;
+    padding: 14px 10px 6px 10px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; padding: 10px 12px;
+    background: none; border: none; color: var(--text-muted);
+    font-size: 13px; cursor: pointer;
+    border-radius: 6px; text-align: left;
+    font-family: inherit;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+  .nav-item.active { background: rgba(201,168,97,0.12); color: var(--accent); }
+  .nav-item-icon { font-size: 16px; }
+  .btn-menu { background: none; border: 1px solid var(--border); color: var(--text); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-family: inherit; }
+  .btn-menu:hover { background: rgba(255,255,255,0.04); }
+
+  /* CONTAINER */
+  .container { padding: 26px 28px; max-width: 1500px; margin: 0 auto; }
+
+  .view.hidden { display: none; }
+
+  .page-title { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 4px; }
+  .page-sub { color: var(--text-muted); font-size: 13px; margin-bottom: 22px; max-width: 800px; line-height: 1.6; }
+
+  /* KPIs */
+  .kpis {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px; margin-bottom: 24px;
+  }
+  .kpi {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px 18px;
+  }
+  .kpi.critical { background: linear-gradient(180deg, var(--critical-bg) 0%, var(--bg-card) 80%); border-color: rgba(225,29,42,0.3); }
+  .kpi.warn { background: linear-gradient(180deg, var(--warn-bg) 0%, var(--bg-card) 80%); border-color: rgba(212,165,89,0.3); }
+  .kpi.ok { background: linear-gradient(180deg, var(--ok-bg) 0%, var(--bg-card) 80%); border-color: rgba(16,185,129,0.3); }
+  .kpi.info { background: linear-gradient(180deg, var(--info-bg) 0%, var(--bg-card) 80%); border-color: rgba(107,155,212,0.3); }
+  .kpi-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 6px; }
+  .kpi-value { font-size: 26px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+  .kpi-sub { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+  /* CARDS */
+  .card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden;
+  }
+
+  /* DROPZONES */
+  .upload-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px; margin-bottom: 18px;
+  }
+  .dropzone {
+    background: var(--bg-card); border: 2px dashed var(--border);
+    border-radius: 10px; padding: 24px 18px;
+    text-align: center; cursor: pointer;
+    position: relative; transition: all 0.2s;
+  }
+  .dropzone:hover { border-color: var(--accent); background: rgba(201,168,97,0.04); }
+  .dropzone.dragover { border-color: var(--accent); background: rgba(201,168,97,0.08); }
+  .dropzone.has-file { border-color: var(--ok); border-style: solid; background: rgba(16,185,129,0.05); }
+  .dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .dropzone-icon { font-size: 30px; margin-bottom: 8px; }
+  .dropzone-title { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+  .dropzone-hint { font-size: 11px; color: var(--text-dim); }
+
+  .help-box {
+    background: rgba(107,155,212,0.06); border: 1px solid rgba(107,155,212,0.2);
+    border-radius: 8px; padding: 10px 14px; font-size: 12px; color: var(--text-muted);
+    margin-bottom: 12px; line-height: 1.6;
+  }
+
+  .alert {
+    padding: 12px 16px; border-radius: 8px; font-size: 13px;
+    margin-bottom: 16px;
+  }
+  .alert-warn { background: rgba(212,165,89,0.08); border: 1px solid rgba(212,165,89,0.25); color: var(--warn); }
+  .alert-info { background: rgba(107,155,212,0.08); border: 1px solid rgba(107,155,212,0.25); color: var(--info); }
+  .alert.hidden { display: none; }
+
+  /* TABLES */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead { background: var(--bg-overlay); }
+  th {
+    text-align: left; padding: 10px 12px;
+    font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-muted);
+    font-weight: 600; border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  th.right, td.right { text-align: right; }
+  th.center, td.center { text-align: center; }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover { color: var(--text); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border-soft); }
+  tr:hover td { background: rgba(255,255,255,0.015); }
+  tr.row-crit { background: rgba(225,29,42,0.04); }
+  tr.row-crit:hover td { background: rgba(225,29,42,0.07); }
+  tr.row-warn { background: rgba(212,165,89,0.03); }
+
+  /* BADGES */
+  .badge {
+    display: inline-block; padding: 3px 8px; border-radius: 4px;
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .badge-crit { background: rgba(225,29,42,0.15); color: var(--critical); }
+  .badge-warn { background: rgba(212,165,89,0.15); color: var(--warn); }
+  .badge-ok { background: rgba(16,185,129,0.15); color: var(--ok); }
+  .badge-info { background: rgba(107,155,212,0.15); color: var(--info); }
+  .badge-neutral { background: rgba(120,120,120,0.15); color: var(--text-muted); }
+
+  .days-cell { font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+  .days-low { color: var(--critical); }
+  .days-med { color: var(--warn); }
+  .days-ok { color: var(--ok); }
+
+  /* BUTTONS */
+  .btn {
+    background: var(--bg-overlay); border: 1px solid var(--border);
+    color: var(--text); padding: 8px 16px;
+    border-radius: 6px; cursor: pointer;
+    font-size: 13px; font-weight: 500;
+    font-family: inherit;
+    transition: all 0.15s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { background: rgba(255,255,255,0.06); border-color: var(--text-dim); }
+  .btn-sm { padding: 5px 10px; font-size: 11px; }
+  .btn-gold { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 600; }
+  .btn-gold:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+  .btn-primary { background: var(--info); border-color: var(--info); color: #fff; }
+  .btn-primary:hover { background: #5a8ac4; }
+  .btn-danger { background: rgba(225,29,42,0.15); border-color: rgba(225,29,42,0.4); color: var(--critical); }
+  .btn-danger:hover { background: rgba(225,29,42,0.25); }
+  .btn-ok { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.4); color: var(--ok); }
+  .btn-ok:hover { background: rgba(16,185,129,0.25); }
+
+  /* INPUTS */
+  .search-input, input[type="text"], input[type="number"], input[type="date"], select, textarea {
+    background: var(--bg-overlay); border: 1px solid var(--border);
+    color: var(--text); padding: 8px 12px;
+    border-radius: 6px; font-size: 13px;
+    font-family: inherit;
+    outline: none;
+  }
+  .search-input:focus, input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+
+  /* PARAMS BAR */
+  .params-bar {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 16px;
+    display: flex; gap: 16px; flex-wrap: wrap; align-items: end;
+    margin-bottom: 16px;
+  }
+  .param-group { display: flex; flex-direction: column; gap: 4px; }
+  .param-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+  .param-input { min-width: 160px; }
+
+  /* TABS */
+  .tabs {
+    display: flex; gap: 4px; border-bottom: 1px solid var(--border);
+    margin-bottom: 18px;
+  }
+  .tab {
+    background: none; border: none; color: var(--text-muted);
+    padding: 10px 16px; font-size: 13px; cursor: pointer;
+    border-bottom: 2px solid transparent;
+    font-family: inherit; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-count {
+    background: var(--bg-overlay); color: var(--text-muted);
+    padding: 1px 7px; border-radius: 10px; font-size: 10px;
+    font-weight: 600; font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px); z-index: 250;
+    display: none; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: 12px; max-width: 580px; width: 100%;
+    max-height: 90vh; overflow: hidden; display: flex; flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .modal-wide { max-width: 900px; }
+  .modal-header {
+    padding: 16px 22px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .modal-title { font-size: 16px; font-weight: 600; }
+  .modal-close { background: none; border: none; color: var(--text-muted); font-size: 22px; cursor: pointer; line-height: 1; }
+  .modal-body { padding: 20px 22px; overflow-y: auto; flex: 1; }
+  .modal-footer {
+    padding: 14px 22px; border-top: 1px solid var(--border);
+    display: flex; gap: 10px; justify-content: flex-end;
+  }
+  .form-row { margin-bottom: 14px; }
+  .form-row label { display: block; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; margin-bottom: 5px; }
+  .form-row input, .form-row select, .form-row textarea { width: 100%; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* LINK STYLE */
+  .sku-link { color: var(--accent); text-decoration: none; cursor: pointer; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  .sku-link:hover { text-decoration: underline; }
+
+  /* UPDATE LOG */
+  .update-log-item {
+    padding: 8px 14px; border-radius: 6px; font-size: 12px;
+    margin-bottom: 6px; display: flex; align-items: center; gap: 8px;
+  }
+  .update-log-item.ok { background: rgba(16,185,129,0.08); color: var(--ok); }
+  .update-log-item.error { background: rgba(225,29,42,0.08); color: var(--critical); }
+
+  /* TABLE WRAP */
+  .table-wrap { overflow-x: auto; }
+
+  /* EXPANSÃO */
+  .row-expand {
+    background: var(--bg-overlay) !important;
+  }
+  .row-expand td { padding: 14px 18px; }
+  .expand-detail {
+    font-size: 12px; color: var(--text-muted);
+  }
+  .expand-detail table {
+    background: transparent; margin: 6px 0;
+  }
+  .expand-detail th { background: transparent; font-size: 10px; }
+  .expand-detail td { padding: 6px 10px; }
+
+  /* SEARCH BAR */
+  .search-bar {
+    display: flex; gap: 10px; align-items: center;
+    margin-bottom: 14px; flex-wrap: wrap;
+  }
+  .search-input-main {
+    flex: 1; min-width: 240px; max-width: 360px;
+  }
+  .filter-chip {
+    background: var(--bg-overlay); border: 1px solid var(--border);
+    padding: 5px 12px; border-radius: 16px; font-size: 12px;
+    cursor: pointer; color: var(--text-muted);
+    font-family: inherit;
+  }
+  .filter-chip:hover { color: var(--text); border-color: var(--text-dim); }
+  .filter-chip.active { background: rgba(201,168,97,0.15); border-color: var(--accent); color: var(--accent); }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+  @media (max-width: 768px) {
+    .container { padding: 16px; }
+    .header { padding: 12px 16px; }
+    .params-bar { flex-direction: column; align-items: stretch; }
+    .form-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <button class="btn-menu" id="btnMenu">☰ Menu</button>
+    <div class="logo"><span class="logo-mark">◆</span>COMPRAS</div>
+    <div class="breadcrumb" id="breadcrumb">Sistema de Gestão de Insumos</div>
+  </div>
+  <div class="header-right">
+    <span class="last-update mono"><span class="status-dot"></span><span id="lastUpdateStamp">Sem dados</span></span>
+    <button class="btn btn-sm" id="btnExport" title="Exportar backup">💾</button>
+    <button class="btn btn-sm" id="btnImport" title="Importar backup">📥</button>
+  </div>
+</header>
+
+<!-- DRAWER -->
+<div class="drawer-backdrop" id="drawerBackdrop"></div>
+
+<div id="backupBanner" style="display:none;align-items:center;gap:12px;background:var(--info-bg);border-bottom:1px solid var(--info);padding:10px 28px;font-size:13px;color:var(--text);position:sticky;top:0;z-index:150;flex-wrap:wrap">
+  <span style="font-size:16px">☁️</span>
+  <span id="backupBannerText" style="flex:1;min-width:200px"></span>
+  <button class="btn btn-sm btn-gold" id="backupBannerLoad">Carregar</button>
+  <button class="btn btn-sm" id="backupBannerIgnore">Ignorar</button>
+</div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-header">
+    <div class="logo"><span class="logo-mark">◆</span>Menu</div>
+    <button class="drawer-close" id="btnDrawerClose">×</button>
+  </div>
+  <div class="drawer-section-title">Operação</div>
+  <button class="nav-item active" data-view="dashboard"><span class="nav-item-icon">📊</span> Dashboard</button>
+  <button class="nav-item" data-view="sugestao"><span class="nav-item-icon">🛒</span> Sugestão de compra</button>
+  <button class="nav-item" data-view="andamento"><span class="nav-item-icon">🚚</span> Pedidos em aberto</button>
+  <button class="nav-item" data-view="followup"><span class="nav-item-icon">📌</span> Follow-up de entregas</button>
+  <button class="nav-item" data-view="historico"><span class="nav-item-icon">📜</span> Histórico de pedidos</button>
+  <div class="drawer-section-title">Dados</div>
+  <button class="nav-item" data-view="atualizar"><span class="nav-item-icon">📥</span> Atualizar dados</button>
+  <button class="nav-item" data-view="kits"><span class="nav-item-icon">🔗</span> Kits compartilhados</button>
+  <button class="nav-item" data-view="engenharia"><span class="nav-item-icon">⚙️</span> Engenharias (BOM)</button>
+  <button class="nav-item" data-view="insumos"><span class="nav-item-icon">🧰</span> Insumos</button>
+</aside>
+
+<input type="file" id="importFileHidden" accept=".json" style="display:none">
+
+<div class="container">
+
+<!-- =============== DASHBOARD =============== -->
+<div id="view-dashboard" class="view">
+  <h1 class="page-title">Dashboard de Compras</h1>
+  <p class="page-sub">Visão geral. Quanto está com estoque crítico, quanto já foi comprado, próximas entregas.</p>
+
+  <div id="dashNoData" class="alert alert-warn hidden">
+    ⚠ Você ainda não carregou os dados. Vá em <b>Atualizar dados</b> e arraste os arquivos.
+  </div>
+
+  <div class="kpis" id="dashKpis"></div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 8px;">
+    <div class="card" style="padding: 16px;">
+      <h3 style="font-size: 14px; margin-bottom: 12px;">🚨 Top 10 críticos (precisa comprar agora)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Insumo</th><th class="right">Dias</th><th class="right">Comprar</th></tr></thead>
+          <tbody id="dashCriticosTbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card" style="padding: 16px;">
+      <h3 style="font-size: 14px; margin-bottom: 12px;">🚚 Próximas entregas (pedidos em aberto)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Insumo</th><th>Pedido</th><th class="right">Entrega</th></tr></thead>
+          <tbody id="dashEntregasTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============== SUGESTÃO DE COMPRA =============== -->
+<div id="view-sugestao" class="view hidden">
+  <h1 class="page-title">Sugestão de compra</h1>
+  <p class="page-sub">Para cada insumo (tampa, válvula, frasco, cartonagem, rótulo, selo, sleeve), o sistema soma o consumo de todos os produtos que o utilizam, compara com estoque + pedidos em aberto, e indica se precisa comprar. Essências não entram aqui — gerenciadas no PCP. <b>Você pode comprar qualquer insumo a qualquer momento</b>, mesmo se estiver OK.</p>
+
+  <div id="sugNoData" class="alert alert-warn hidden">
+    ⚠ Você ainda não carregou os dados. Vá em <b>Atualizar dados</b> primeiro.
+  </div>
+
+  <div class="params-bar">
+    <div class="param-group">
+      <label class="param-label">Estratégia de demanda</label>
+      <select class="param-input" id="paramVenda">
+        <option value="pico6_m3">MAX(M3, pico 6M) — conservador</option>
+        <option value="pico6">Pico dos 6 últimos meses</option>
+        <option value="m1">Último mês (M1)</option>
+        <option value="m3" selected>Média 3 meses (M3)</option>
+        <option value="m6">Média 6 meses (M6)</option>
+      </select>
+    </div>
+    <div class="param-group">
+      <label class="param-label">Dias mínimos (gatilho)</label>
+      <input type="number" class="param-input" id="paramGatilho" value="60" min="0" max="365" style="width:100px">
+    </div>
+    <div class="param-group">
+      <label class="param-label">Cobertura desejada (dias)</label>
+      <input type="number" class="param-input" id="paramCobertura" value="90" min="0" max="365" style="width:120px">
+    </div>
+    <div class="param-group">
+      <label class="param-label">&nbsp;</label>
+      <button class="btn btn-gold" id="btnRecalcSug">🔄 Recalcular</button>
+    </div>
+    <div class="param-group" style="margin-left:auto">
+      <label class="param-label">&nbsp;</label>
+      <button class="btn" id="btnExportSugCSV">⬇ Exportar Excel</button>
+    </div>
+  </div>
+
+  <div class="search-bar">
+    <input type="text" id="sugSearch" class="search-input search-input-main" placeholder="🔍 Buscar por nome, SKU ou categoria...">
+    <button class="filter-chip active" data-sug-filter="all">Todos</button>
+    <button class="filter-chip" data-sug-filter="crit">🚨 Críticos</button>
+    <button class="filter-chip" data-sug-filter="warn">⚠ Atenção</button>
+    <button class="filter-chip" data-sug-filter="ok">✓ OK</button>
+    <button class="filter-chip" data-sug-filter="comprar">🛒 A comprar</button>
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="sortable" data-sort-sug="sku" style="width:80px">SKU</th>
+            <th class="sortable" data-sort-sug="nome">Insumo</th>
+            <th class="sortable" data-sort-sug="categoria" style="width:120px">Categoria</th>
+            <th class="right sortable" data-sort-sug="usos" style="width:80px">Usos</th>
+            <th class="right sortable" data-sort-sug="estoque" style="width:110px">Estoque</th>
+            <th class="right sortable" data-sort-sug="pedido" style="width:110px">Em pedido</th>
+            <th class="right sortable" data-sort-sug="demanda" style="width:110px">Cons./mês</th>
+            <th class="right sortable" data-sort-sug="dias" style="width:80px">Dias</th>
+            <th class="right sortable" data-sort-sug="comprar" style="width:120px">Comprar</th>
+            <th style="width:120px">Status</th>
+            <th class="center" style="width:90px">Ação</th>
+          </tr>
+        </thead>
+        <tbody id="sugTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- =============== EM ANDAMENTO =============== -->
+<div id="view-andamento" class="view hidden">
+  <h1 class="page-title">Pedidos em aberto</h1>
+  <p class="page-sub">Pedidos já lançados, com número, fornecedor, previsão de entrega. Ao receber o material, marque como "Entregue" e o estoque será atualizado automaticamente.</p>
+
+  <div class="card" style="padding: 16px; margin-bottom: 18px;">
+    <h3 style="font-size: 14px; margin-bottom: 10px;">📥 Importar pedidos em massa</h3>
+    <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Cole um Excel com as colunas: SKU do insumo, Quantidade, Nº Pedido, Fornecedor, Data Pedido, Previsão Entrega.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-sm" id="btnTemplatePedido">📄 Baixar template</button>
+      <input type="file" id="filePedido" accept=".xlsx,.xls,.csv" style="display:none">
+      <button class="btn btn-sm" id="btnImportarPedido">📤 Importar Excel</button>
+      <button class="btn btn-sm btn-gold" id="btnNovoPedido">+ Novo pedido manual</button>
+    </div>
+  </div>
+
+  <div class="search-bar">
+    <input type="text" id="andSearch" class="search-input search-input-main" placeholder="🔍 Buscar por nº pedido, insumo, fornecedor...">
+    <button class="filter-chip active" data-and-filter="aberto">Em aberto</button>
+    <button class="filter-chip" data-and-filter="atrasado">⏰ Atrasados</button>
+    <button class="filter-chip" data-and-filter="proximo">📅 Esta semana</button>
+    <button class="filter-chip" data-and-filter="todos">Todos</button>
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:130px">Nº Pedido</th>
+            <th>Insumo</th>
+            <th style="width:140px">Fornecedor</th>
+            <th class="right" style="width:100px">Quantidade</th>
+            <th style="width:110px">Pedido</th>
+            <th style="width:110px">Previsão</th>
+            <th style="width:80px">Status</th>
+            <th class="center" style="width:160px">Ação</th>
+          </tr>
+        </thead>
+        <tbody id="andTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- =============== FOLLOW-UP DE ENTREGAS =============== -->
+<div id="view-followup" class="view hidden">
+  <h1 class="page-title">Follow-up de entregas</h1>
+  <p class="page-sub">Acompanhamento dos pedidos do comprador <b>Lucas Santos</b> com <b>Qtde Aberta &gt; 0</b> vindos da planilha do SAP. Ajuste a data de entrega, marque entregas (totais ou parciais) e registre observações. O que você escrever fica salvo aqui e <b>não é apagado</b> quando você sobe uma planilha nova.</p>
+
+  <div class="card" style="padding:16px;margin-bottom:18px">
+    <h3 style="font-size:14px;margin-bottom:10px">📥 Carregar / atualizar planilha do SAP</h3>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">
+      Arraste o relatório de pedidos do SAP (colunas <b>Nº do Pedido</b>, <b>Qtde Aberta</b>, <b>Data de Entrega Prevista</b>, etc.). Ao subir uma versão nova, os dados-base são atualizados pelo <b>Nº do Pedido + Cód. Item</b> e suas anotações são mantidas. O arquivo exportado pelo sistema também pode ser recarregado aqui.
+    </p>
+    <div class="dropzone" id="dz-followup" style="min-height:120px">
+      <input type="file" accept=".xlsx,.xls,.csv" data-slot="followup">
+      <div class="dropzone-icon">📌</div>
+      <div class="dropzone-title" id="dzt-followup">Relatório de pedidos (SAP)</div>
+      <div class="dropzone-hint" id="dzh-followup">Arraste o .xlsx aqui ou clique para escolher</div>
+    </div>
+    <div id="followupLog" style="margin-top:12px"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px">
+      <button class="btn btn-sm btn-gold" id="btnExportFollowup">📤 Exportar planilha atualizada</button>
+      <span id="followupStamp" style="font-size:12px;color:var(--text-muted)"></span>
+    </div>
+  </div>
+
+  <div class="params-bar" id="followupKpis" style="display:none">
+    <div class="param-group"><span class="param-label">Itens em aberto</span><span class="mono" id="fupKpiTotal" style="font-size:20px;font-weight:700">—</span></div>
+    <div class="param-group"><span class="param-label">Atrasados</span><span class="mono" id="fupKpiAtraso" style="font-size:20px;font-weight:700;color:var(--critical)">—</span></div>
+    <div class="param-group"><span class="param-label">Entregues (marcados)</span><span class="mono" id="fupKpiEntregue" style="font-size:20px;font-weight:700;color:var(--ok)">—</span></div>
+    <div class="param-group"><span class="param-label">Parciais</span><span class="mono" id="fupKpiParcial" style="font-size:20px;font-weight:700;color:var(--warn)">—</span></div>
+    <div class="param-group"><span class="param-label">Valor em aberto</span><span class="mono" id="fupKpiValor" style="font-size:20px;font-weight:700">—</span></div>
+  </div>
+
+  <div class="search-bar">
+    <input type="text" id="fupSearch" class="search-input search-input-main" placeholder="🔍 Buscar por nº pedido, item, fornecedor...">
+    <button class="filter-chip active" data-fup-filter="pendente">Pendentes</button>
+    <button class="filter-chip" data-fup-filter="atrasado">⏰ Atrasados</button>
+    <button class="filter-chip" data-fup-filter="semana">📅 Próx. 7 dias</button>
+    <button class="filter-chip" data-fup-filter="parcial">◑ Parciais</button>
+    <button class="filter-chip" data-fup-filter="entregue">✓ Entregues</button>
+    <button class="filter-chip" data-fup-filter="todos">Todos</button>
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:90px">Nº Pedido</th>
+            <th>Item</th>
+            <th style="width:150px">Fornecedor</th>
+            <th class="right" style="width:90px">Qtde Aberta</th>
+            <th class="right" style="width:110px">Valor Aberto</th>
+            <th style="width:120px">Entrega prevista</th>
+            <th style="width:110px">Status</th>
+            <th>Observação</th>
+            <th class="center" style="width:90px">Ação</th>
+          </tr>
+        </thead>
+        <tbody id="fupTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- =============== HISTÓRICO =============== -->
+<div id="view-historico" class="view hidden">
+  <h1 class="page-title">Histórico de pedidos</h1>
+  <p class="page-sub">Tudo que já foi entregue ou cancelado. Útil pra rastrear consumo, calcular preço médio, e auditoria.</p>
+
+  <div class="search-bar">
+    <input type="text" id="histSearch" class="search-input search-input-main" placeholder="🔍 Buscar...">
+    <button class="filter-chip active" data-hist-filter="todos">Todos</button>
+    <button class="filter-chip" data-hist-filter="entregue">✓ Entregues</button>
+    <button class="filter-chip" data-hist-filter="cancelado">✕ Cancelados</button>
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:130px">Nº Pedido</th>
+            <th>Insumo</th>
+            <th style="width:140px">Fornecedor</th>
+            <th class="right" style="width:100px">Qtd</th>
+            <th style="width:110px">Pedido</th>
+            <th style="width:110px">Entrega</th>
+            <th style="width:80px">Status</th>
+            <th class="center" style="width:90px"></th>
+          </tr>
+        </thead>
+        <tbody id="histTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- =============== ATUALIZAR DADOS =============== -->
+<div id="view-atualizar" class="view hidden">
+  <h1 class="page-title">Atualizar dados</h1>
+  <p class="page-sub">Arraste os arquivos abaixo. O sistema reconhece o formato automaticamente. Você pode arrastar 1 ou todos.</p>
+
+  <div class="upload-grid">
+    <div class="dropzone" id="dz-venda">
+      <input type="file" accept=".xlsx,.xls,.csv" data-slot="venda">
+      <div class="dropzone-icon">📊</div>
+      <div class="dropzone-title" id="dzt-venda">Vendas</div>
+      <div class="dropzone-hint" id="dzh-venda">BASE_DE_VENDA — Power BI</div>
+    </div>
+    <div class="dropzone" id="dz-estoquepa">
+      <input type="file" accept=".xlsx,.xls,.csv" data-slot="estoquepa">
+      <div class="dropzone-icon">📦</div>
+      <div class="dropzone-title" id="dzt-estoquepa">Estoque PA (Produto Acabado)</div>
+      <div class="dropzone-hint" id="dzh-estoquepa">BASE_DE_ESTOQUEPA — opcional</div>
+    </div>
+    <div class="dropzone" id="dz-insumos">
+      <input type="file" accept=".xlsx,.xls,.csv" data-slot="insumos">
+      <div class="dropzone-icon">🧰</div>
+      <div class="dropzone-title" id="dzt-insumos">Estoque de insumos</div>
+      <div class="dropzone-hint" id="dzh-insumos">BASE_DE_ESTOQUE — CÓD/DESCRIÇÃO/QUANT</div>
+    </div>
+    <div class="dropzone" id="dz-suply">
+      <input type="file" accept=".xlsx,.xls,.csv" data-slot="suply">
+      <div class="dropzone-icon">⚙️</div>
+      <div class="dropzone-title" id="dzt-suply">Engenharias (BOM)</div>
+      <div class="dropzone-hint" id="dzh-suply">SUPLY_GERAL — todas as abas</div>
+    </div>
+  </div>
+
+  <div class="help-box">
+    <b>Como funciona:</b> O sistema cruza <b>VENDAS (consumo) × ENGENHARIA (quanto de cada insumo cada produto consome) × ESTOQUE (o que você tem) × PEDIDOS (o que já comprou)</b> e te diz exatamente quanto e quando comprar. A lógica: se faltam menos de <b>60 dias</b> de cobertura, é sinal de compra.
+  </div>
+
+  <div class="help-box">
+    <b>Sobre essências:</b> Este sistema é focado em <b>insumos físicos</b> (tampas, válvulas, frascos, cartonagens, rótulos, selos, sleeves). Itens com categoria "ESSÊNCIA" são ignorados automaticamente — eles são controlados no sistema PCP.
+  </div>
+
+  <div class="help-box">
+    <b>Engenharias:</b> O arquivo SUPLY_-_GERAL contém múltiplas abas (BODY SPLASH, SUPPLY - 50ML, SUPPLY - SPECIAL, MEMÓRIAS, CORPO, SUPPLY - 30ML). Cada aba traz, para cada produto, os SKUs de TAMPA, VÁLVULA, FRASCO, CARTONAGEM, RÓTULO, SELO, ESSÊNCIA e a quantidade por unidade.
+  </div>
+
+  <div id="updateLog"></div>
+
+  <h2 style="font-size:15px;margin:28px 0 10px 0;color:var(--text-muted)">📦 Importar engenharia + insumos do PCP</h2>
+  <div class="card" style="padding:16px">
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">
+      Se você já tem o backup JSON do sistema PCP, importe aqui pra trazer as engenharias e o cadastro de insumos sem precisar arrastar tudo de novo.
+    </p>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <input type="file" id="filePcpBackup" accept=".json" style="display:none">
+      <button class="btn" id="btnImportPcp">📥 Importar backup do PCP (.json)</button>
+      <span id="pcpImportStatus" style="font-size:12px;color:var(--text-muted)"></span>
+    </div>
+  </div>
+
+  <h2 style="font-size:15px;margin:28px 0 10px 0;color:var(--text-muted)">☁️ Backup &amp; Git (dados compartilhados)</h2>
+  <div class="card" style="padding:16px">
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:6px;line-height:1.6">
+      Os dados ficam salvos <b>neste navegador</b>. Para compartilhar com outra pessoa e ter backup versionado, use um arquivo <b>backup.json</b> no repositório:
+    </p>
+    <ol style="font-size:12px;color:var(--text-muted);margin:0 0 12px 18px;line-height:1.7">
+      <li>Clique em <b>Salvar backup pro Git</b> abaixo — baixa o arquivo <span class="mono">backup.json</span>.</li>
+      <li>Coloque-o na pasta do repositório (substituindo o anterior) e faça <span class="mono">commit</span> + <span class="mono">push</span>.</li>
+      <li>Quando alguém abrir o sistema, ele carrega automaticamente o último <span class="mono">backup.json</span> commitado.</li>
+    </ol>
+    <p style="font-size:11px;color:var(--text-dim);margin-bottom:12px;line-height:1.6">
+      ⚠️ Não é tempo real: se duas pessoas editam ao mesmo tempo, vale combinar quem salva (puxar do git → editar → exportar → commitar). A auto-carga só roda quando o sistema está hospedado (ex.: GitHub Pages); abrindo o arquivo direto do disco o navegador bloqueia a leitura.
+    </p>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-gold" id="btnBackupGit">💾 Salvar backup pro Git (backup.json)</button>
+      <button class="btn" id="btnExport2">⬇️ Backup datado (.json)</button>
+      <button class="btn" id="btnImport2">⬆️ Restaurar backup (.json)</button>
+    </div>
+  </div>
+</div>
+
+<!-- =============== KITS COMPARTILHADOS =============== -->
+<div id="view-kits" class="view hidden">
+  <h1 class="page-title">Kits compartilhados</h1>
+  <p class="page-sub">Insumos comuns que aparecem em <b>toda uma linha de produtos</b> (ex: TAMPA 50ML que é igual para todos os VIPs, ou VIDRO YES que é igual para todas as Memórias YES). Em vez de cadastrar manualmente em cada engenharia, basta declarar um kit e o sistema soma o consumo automaticamente para todos os produtos da linha.</p>
+
+  <div class="help-box">
+    <b>Como funciona:</b> O sistema detecta a linha pelo nome do produto (VIP, FIT, LUX, SPA, DESODORANTE COLONIA YES, etc) e aplica o kit correspondente. Insumos já cadastrados na engenharia explícita do produto têm prioridade — o kit só adiciona o que falta. Se quiser <b>desabilitar</b> o kit para um produto específico, use a aba "Overrides".
+  </div>
+
+  <div class="tabs" style="margin-bottom: 18px;">
+    <button class="tab active" data-kit-tab="kits">📦 Kits cadastrados</button>
+    <button class="tab" data-kit-tab="produtos">🔍 Por produto (ver detecção)</button>
+    <button class="tab" data-kit-tab="overrides">✏️ Overrides manuais <span class="tab-count" id="kitOverridesCount">0</span></button>
+  </div>
+
+  <!-- TAB: KITS CADASTRADOS -->
+  <div id="kitTab-kits" class="kit-tab">
+    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <button class="btn btn-gold" id="btnNovoKit">+ Novo kit</button>
+      <button class="btn btn-sm" id="btnResetKits" title="Restaura os kits padrão (não toca em overrides)">↺ Restaurar padrão</button>
+    </div>
+    <div id="kitsList"></div>
+  </div>
+
+  <!-- TAB: POR PRODUTO -->
+  <div id="kitTab-produtos" class="kit-tab hidden">
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Veja qual kit foi detectado para cada produto e o que será somado na demanda. Clique em "↺" para limpar override manual e voltar à detecção automática.</p>
+    <div class="search-bar">
+      <input type="text" id="kitProdSearch" class="search-input search-input-main" placeholder="🔍 Buscar produto...">
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:80px">SKU</th>
+              <th>Produto</th>
+              <th style="width:200px">Kit detectado</th>
+              <th style="width:280px">Insumos do kit aplicados</th>
+              <th class="center" style="width:180px">Ação</th>
+            </tr>
+          </thead>
+          <tbody id="kitProdTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: OVERRIDES -->
+  <div id="kitTab-overrides" class="kit-tab hidden">
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Produtos que tiveram o kit padrão substituído manualmente. Geralmente isso é necessário para casos especiais (ex: um perfume YES que usa frasco Sândalo).</p>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:80px">SKU</th>
+              <th>Produto</th>
+              <th style="width:200px">Detecção automática</th>
+              <th style="width:200px">Override manual</th>
+              <th class="center" style="width:90px">Ação</th>
+            </tr>
+          </thead>
+          <tbody id="kitOverridesTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal editar kit -->
+<div class="modal-overlay" id="modalKit">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <div class="modal-title" id="modalKitTitle">Editar kit</div>
+      <button class="modal-close" data-close="modalKit">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-row">
+          <label>ID DO KIT</label>
+          <input type="text" id="kitEditId" placeholder="ex: VIP_50ML">
+        </div>
+        <div class="form-row">
+          <label>NOME EXIBIDO</label>
+          <input type="text" id="kitEditNome" placeholder="ex: VIP 50ML (Linha Automática)">
+        </div>
+      </div>
+      <div class="form-row">
+        <label>DESCRIÇÃO / REGRA DE DETECÇÃO</label>
+        <input type="text" id="kitEditDesc" placeholder="ex: Produtos cujo nome começa com VIP">
+      </div>
+      <h4 style="font-size:13px;margin:18px 0 8px 0;color:var(--text-muted)">INSUMOS DO KIT</h4>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:90px">SKU</th>
+            <th>Nome</th>
+            <th style="width:120px">Tipo</th>
+            <th class="right" style="width:80px">Qtd</th>
+            <th style="width:70px">Unidade</th>
+            <th style="width:50px"></th>
+          </tr>
+        </thead>
+        <tbody id="kitEditBomTbody"></tbody>
+      </table>
+      <div style="margin-top:10px"><button class="btn btn-sm" id="btnAddKitBom">+ Adicionar insumo</button></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="btnDeleteKit" style="margin-right:auto">🗑 Excluir kit</button>
+      <button class="btn" data-close="modalKit">Cancelar</button>
+      <button class="btn btn-gold" id="btnSalvarKit">Salvar kit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal escolher kit (override) -->
+<div class="modal-overlay" id="modalEscolherKit">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalEscolherKitTitle">Alterar kit do produto</div>
+      <button class="modal-close" data-close="modalEscolherKit">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Selecione qual kit deve ser aplicado a este produto, ou desabilite a aplicação automática.</p>
+      <div class="form-row">
+        <label>KIT</label>
+        <select id="escolherKitSel"></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" data-close="modalEscolherKit">Cancelar</button>
+      <button class="btn btn-gold" id="btnSalvarEscolherKit">Aplicar</button>
+    </div>
+  </div>
+</div>
+
+<!-- =============== ENGENHARIAS =============== -->
+<div id="view-engenharia" class="view hidden">
+  <h1 class="page-title">Engenharias (BOM)</h1>
+  <p class="page-sub">Para cada produto acabado, a lista de insumos necessários: SKU + quantidade + tipo. Quando um produto vende, o sistema "consome" virtualmente cada insumo da BOM × volume vendido.</p>
+
+  <div class="kpis" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr))">
+    <div class="kpi"><div class="kpi-label">Produtos cadastrados</div><div class="kpi-value" id="engKpiProd">—</div></div>
+    <div class="kpi"><div class="kpi-label">Engenharias cadastradas</div><div class="kpi-value" id="engKpiEng">—</div></div>
+    <div class="kpi warn"><div class="kpi-label">Sem engenharia</div><div class="kpi-value" id="engKpiFalta">—</div><div class="kpi-sub">não geram consumo</div></div>
+  </div>
+
+  <div class="search-bar">
+    <input type="text" id="engSearch" class="search-input search-input-main" placeholder="🔍 Buscar produto por nome ou SKU...">
+    <button class="filter-chip active" data-eng-filter="todos">Todos</button>
+    <button class="filter-chip" data-eng-filter="com">Com engenharia</button>
+    <button class="filter-chip" data-eng-filter="sem">⚠ Sem engenharia</button>
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:80px">SKU</th>
+            <th>Produto</th>
+            <th class="right" style="width:100px">Itens BOM</th>
+            <th class="right" style="width:110px">Venda M3</th>
+            <th class="center" style="width:120px">Ação</th>
+          </tr>
+        </thead>
+        <tbody id="engTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- =============== INSUMOS =============== -->
+<div id="view-insumos" class="view hidden">
+  <h1 class="page-title">Insumos cadastrados</h1>
+  <p class="page-sub">Insumos físicos (tampa, válvula, frasco, cartonagem, rótulo, selo, sleeve) com estoque. Essências não aparecem aqui — controladas no sistema PCP.</p>
+
+  <div class="search-bar">
+    <input type="text" id="insSearch" class="search-input search-input-main" placeholder="🔍 Buscar por nome, SKU ou categoria...">
+    <select id="insCatFilter" class="search-input" style="width:180px">
+      <option value="">Todas as categorias</option>
+    </select>
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:80px">SKU</th>
+            <th>Nome</th>
+            <th style="width:140px">Categoria</th>
+            <th class="right" style="width:100px">Unidade</th>
+            <th class="right" style="width:130px">Estoque</th>
+            <th class="right" style="width:90px">Usado em</th>
+          </tr>
+        </thead>
+        <tbody id="insTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<!-- ============ MODAIS ============ -->
+
+<!-- Modal novo pedido -->
+<div class="modal-overlay" id="modalPedido">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalPedidoTitle">Novo pedido de compra</div>
+      <button class="modal-close" data-close="modalPedido">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label>INSUMO</label>
+        <select id="pedInsumoSku">
+          <option value="">— Selecione —</option>
+        </select>
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label>Nº DO PEDIDO</label>
+          <input type="text" id="pedNumero" placeholder="ex: 12345">
+        </div>
+        <div class="form-row">
+          <label>QUANTIDADE</label>
+          <input type="number" id="pedQtd" placeholder="ex: 1000" step="0.01">
+        </div>
+      </div>
+      <div class="form-row">
+        <label>FORNECEDOR</label>
+        <input type="text" id="pedFornecedor" placeholder="ex: VOLLMENS">
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label>DATA DO PEDIDO</label>
+          <input type="date" id="pedDataPedido">
+        </div>
+        <div class="form-row">
+          <label>PREVISÃO DE ENTREGA</label>
+          <input type="date" id="pedDataEntrega">
+        </div>
+      </div>
+      <div class="form-row">
+        <label>OBSERVAÇÕES</label>
+        <textarea id="pedObs" rows="2" placeholder="Anotações, condições, etc."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" data-close="modalPedido">Cancelar</button>
+      <button class="btn btn-gold" id="btnSalvarPedido">Salvar pedido</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal follow-up de entrega -->
+<div class="modal-overlay" id="modalFollowup">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalFollowupTitle">Follow-up do item</div>
+      <button class="modal-close" data-close="modalFollowup">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="fupEditInfo" style="font-size:12px;color:var(--text-muted);margin-bottom:16px;line-height:1.6"></div>
+      <div class="form-row">
+        <label>DATA DE ENTREGA (ajustada)</label>
+        <input type="date" id="fupEditData">
+        <div style="font-size:11px;color:var(--text-dim);margin-top:4px" id="fupEditDataHint"></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label>SITUAÇÃO DA ENTREGA</label>
+          <select id="fupEditSituacao">
+            <option value="pendente">Em aberto</option>
+            <option value="parcial">Entregue parcialmente</option>
+            <option value="entregue">Entregue (total)</option>
+          </select>
+        </div>
+        <div class="form-row" id="fupEditQtdWrap">
+          <label>QTDE ENTREGUE (parcial)</label>
+          <input type="number" id="fupEditQtdEntregue" step="0.01" placeholder="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <label>OBSERVAÇÕES</label>
+        <textarea id="fupEditObs" rows="3" placeholder="Ex.: fornecedor confirmou nova data, NF emitida, aguardando transporte..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="fupBtnLimpar" style="margin-right:auto">Limpar anotações</button>
+      <button class="btn" data-close="modalFollowup">Cancelar</button>
+      <button class="btn btn-gold" id="fupBtnSalvar">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal engenharia -->
+<div class="modal-overlay" id="modalEng">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <div class="modal-title" id="modalEngTitle">Engenharia do produto</div>
+      <button class="modal-close" data-close="modalEng">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px">SKU + quantidade + tipo. Quantidade é "por unidade vendida" (ex: 1 tampa por frasco, 17g de essência por 100ml).</p>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:90px">SKU Insumo</th>
+            <th>Nome</th>
+            <th style="width:130px">Tipo</th>
+            <th class="right" style="width:90px">Qtd</th>
+            <th style="width:70px">Unidade</th>
+            <th style="width:60px"></th>
+          </tr>
+        </thead>
+        <tbody id="engEditTbody"></tbody>
+      </table>
+      <div style="margin-top:12px">
+        <button class="btn btn-sm" id="btnAddBom">+ Adicionar insumo</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" data-close="modalEng">Cancelar</button>
+      <button class="btn btn-gold" id="btnSalvarEng">Salvar engenharia</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal usos (quais produtos usam o insumo) -->
+<div class="modal-overlay" id="modalUsos">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <div class="modal-title" id="modalUsosTitle">Usos do insumo</div>
+      <button class="modal-close" data-close="modalUsos">×</button>
+    </div>
+    <div class="modal-body">
+      <table>
+        <thead>
+          <tr><th style="width:80px">SKU</th><th>Produto</th><th class="right" style="width:100px">Venda/mês</th><th class="right" style="width:90px">Qtd/un</th><th class="right" style="width:120px">Consumo/mês</th></tr>
+        </thead>
+        <tbody id="modalUsosTbody"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" data-close="modalUsos">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// ESTADO GLOBAL
+// ============================================================
+const state = {
+  produtos: [],      // [{sku, descricao, categoria}]
+  engenharia: {},    // {produtoSku: [{sku, qtd, unidade, tipo}]}
+  insumos: {},       // {sku: {nome, categoria, estoque, unidade}}
+  venda: {},         // {produtoSku: {m1, m3, m6, pico6, meses}}
+  estoquePA: {},     // {sku: {pe, sp}} -- opcional, só pra dashboard
+  pedidos: [],       // [{id, numero, insumoSku, insumoNome, qtd, fornecedor, dataPedido, dataPrevista, dataEntregue, status, observacoes, criadoEm}]
+  lastUpdate: { venda: null, insumos: null, suply: null, estoquePA: null, followup: null },
+  // FOLLOW-UP DE ENTREGAS
+  followupBase: [],  // snapshot da última planilha do SAP: [{chave, numero, comprador, dataPedido, dataPrevista, fornecedor, codItem, item, qtde, qtdeAberta, valorAberto, saldoAberto}]
+  followup: {},      // anotações manuais por chave: {chave: {dataEntrega, situacao, qtdEntregue, obs, atualizadoEm}}
+  fupFilter: 'pendente',
+  fupSearch: '',
+  fupEditKey: null,
+  backupSync: null, // {loadedExportedAt} — controla a auto-carga do backup.json do repositório
+  // UI
+  sugFilter: 'all',
+  sugSearch: '',
+  sugSortKey: 'comprar',
+  sugSortDir: 'desc',
+  andFilter: 'aberto',
+  andSearch: '',
+  histFilter: 'todos',
+  histSearch: '',
+  engFilter: 'todos',
+  engSearch: '',
+  engEditingProd: null,
+  engEditingBom: [], // temp BOM em edição
+  insSearch: '',
+  insCatFilter: '',
+  // Tab atual da view de kits
+  kitTabAtual: 'kits',
+  kitEditingId: null,
+  kitEditingBom: [],
+  kitEscolhendoProdSku: null,
+  kitProdSearch: '',
+  // KITs compartilhados por linha (insumos comuns que NÃO precisam estar na engenharia individual)
+  // Cada produto detectado como pertencente a uma linha herda o kit AUTOMATICAMENTE.
+  // Usuário pode customizar via tela "Kits / Insumos compartilhados".
+  kitsCompartilhados: null, // preenchido em init() se não vier do storage
+  kitOverrides: {}, // {produtoSku: 'MEMORIAS_SANDALO'} — sobrescreve detecção automática
+};
+
+// ============================================================
+// KITS COMPARTILHADOS (insumos comuns por linha)
+// ============================================================
+// Baseados na aba "EMBALAGEM 22.05" do SUPLY_GERAL.
+// Cada linha tem insumos padrão (tampa, válvula, frasco/vidro, sleeve) que aparecem
+// em TODOS os produtos daquela linha. Em vez de cadastrar manualmente em cada engenharia,
+// o sistema injeta esses insumos automaticamente baseado no nome/categoria do produto.
+const KITS_DEFAULT = {
+  'VIP_50ML': {
+    nome: 'VIP 50ML (Linha Automática)',
+    descricao: 'Aplica-se a produtos VIP 50ml regulares',
+    bom: [
+      { sku: 2455, qtd: 1, unidade: 'UN', tipo: 'TAMPA' },       // TAMPA 50ML
+      { sku: 1325, qtd: 1, unidade: 'UN', tipo: 'VÁLVULA' },     // VALVULA RECRAVE 15MM
+      { sku: 391,  qtd: 1, unidade: 'UN', tipo: 'FRASCO' },      // VIDRO LIMPO (ou queimado VIP)
+      { sku: 956,  qtd: 1, unidade: 'UN', tipo: 'SLEEVE' },      // SLEEVE VIP
+    ],
+  },
+  'FIT_50ML': {
+    nome: 'FIT 50ML (Linha Automática)',
+    descricao: 'Aplica-se a produtos FIT 50ml',
+    bom: [
+      { sku: 2455, qtd: 1, unidade: 'UN', tipo: 'TAMPA' },
+      { sku: 1325, qtd: 1, unidade: 'UN', tipo: 'VÁLVULA' },
+      { sku: 391,  qtd: 1, unidade: 'UN', tipo: 'FRASCO' },
+      { sku: 2289, qtd: 1, unidade: 'UN', tipo: 'SLEEVE' },      // SLEEVE FIT
+    ],
+  },
+  'LUX_50ML': {
+    nome: 'LUX 50ML (Linha Automática)',
+    descricao: 'Aplica-se a produtos LUX 50ml',
+    bom: [
+      { sku: 2455, qtd: 1, unidade: 'UN', tipo: 'TAMPA' },
+      { sku: 1325, qtd: 1, unidade: 'UN', tipo: 'VÁLVULA' },
+      { sku: 391,  qtd: 1, unidade: 'UN', tipo: 'FRASCO' },
+      { sku: 2172, qtd: 1, unidade: 'UN', tipo: 'SLEEVE' },      // SLEEVE LUX
+    ],
+  },
+  'SPA_50ML': {
+    nome: 'SPA 50ML (Linha Automática)',
+    descricao: 'Aplica-se a produtos SPA 50ml',
+    bom: [
+      { sku: 2455, qtd: 1, unidade: 'UN', tipo: 'TAMPA' },
+      { sku: 1325, qtd: 1, unidade: 'UN', tipo: 'VÁLVULA' },
+      { sku: 391,  qtd: 1, unidade: 'UN', tipo: 'FRASCO' },
+      { sku: 2174, qtd: 1, unidade: 'UN', tipo: 'SLEEVE' },      // SLEEVE SPA
+    ],
+  },
+  'MEMORIAS_YES': {
+    nome: 'Memórias YES (Manhattan)',
+    descricao: 'Desodorante Colônia YES com tampa Manhattan',
+    bom: [
+      { sku: 4717, qtd: 1, unidade: 'UN', tipo: 'TAMPA' },       // TAMPA YES MANHATTAN
+      { sku: 4719, qtd: 1, unidade: 'UN', tipo: 'VÁLVULA' },     // VALVULA YES
+      { sku: 4715, qtd: 1, unidade: 'UN', tipo: 'FRASCO' },      // VIDRO YES 100 ML
+    ],
+  },
+  'MEMORIAS_SANDALO': {
+    nome: 'Memórias Sândalo Noir',
+    descricao: 'Desodorante Colônia da sublinha Sândalo (tampa Forum 2 Preta)',
+    bom: [
+      { sku: 7131, qtd: 1, unidade: 'UN', tipo: 'TAMPA' },       // TAMPA SANDALO (FORUM 2 PRETA)
+      { sku: 7268, qtd: 1, unidade: 'UN', tipo: 'VÁLVULA' },     // VALVULA SANDALO
+      { sku: 7081, qtd: 1, unidade: 'UN', tipo: 'FRASCO' },      // VIDRO SANDALO
+    ],
+  },
+  'MEMORIAS_EXTREME': {
+    nome: 'Memórias Extreme Black',
+    descricao: 'Desodorante Colônia Extreme (tampa Vision Preta)',
+    bom: [
+      { sku: 4994, qtd: 1, unidade: 'UN', tipo: 'TAMPA' },       // TAMPA EXTREME
+      { sku: 4995, qtd: 1, unidade: 'UN', tipo: 'VÁLVULA' },     // VALVULAS EXTREME
+      { sku: 5210, qtd: 1, unidade: 'UN', tipo: 'FRASCO' },      // VIDRO EXTREME
+    ],
+  },
+};
+
+// Regras de detecção de linha pelo nome/categoria do produto.
+// Ordem importa — a primeira que casar vence.
+function detectarKitProduto(prod) {
+  if (!prod) return null;
+  // 1. Override manual sempre tem prioridade
+  if (state.kitOverrides && state.kitOverrides[prod.sku]) {
+    if (state.kitOverrides[prod.sku] === '__NONE__') return null; // explicitamente desabilitado
+    return state.kitOverrides[prod.sku];
+  }
+  const d = (prod.descricao || '').toUpperCase();
+  // Memórias YES - sublinhas pela descrição
+  if (d.includes('DESODORANTE COLONIA')) {
+    // Lista de produtos da sublinha SANDALO (perfumes mais "amadeirados/quentes")
+    // O usuário pode reclassificar via override depois
+    const sandaloPerfumes = ['ARDENTE', 'CAPRI', 'NUIT CLAIRE', 'OUSADIA', 'PARADOXO', 'VERTIGEM', 'LIBERTAD'];
+    const extremePerfumes = ['ARTIFICE', 'ENIGMA', 'EXTREME', 'INSTINTO', 'DOMINUS', 'MAGNIFICO'];
+    if (sandaloPerfumes.some(p => d.includes(p))) return 'MEMORIAS_SANDALO';
+    if (extremePerfumes.some(p => d.includes(p))) return 'MEMORIAS_EXTREME';
+    return 'MEMORIAS_YES'; // default
+  }
+  // Linhas 50ML regulares - pelo prefixo
+  if (/^VIP\s/i.test(d)) return 'VIP_50ML';
+  if (/^FIT\s/i.test(d)) return 'FIT_50ML';
+  if (/^LUX\s/i.test(d)) return 'LUX_50ML';
+  if (/^SPA\s/i.test(d)) return 'SPA_50ML';
+  return null;
+}
+
+// Retorna a engenharia EFETIVA de um produto: explícita (state.engenharia[sku]) + kit da linha.
+// Insumos do kit não substituem itens da engenharia explícita (que tem prioridade).
+function getEngenhariaEfetiva(prodSku) {
+  const prod = state.produtos.find(p => p.sku === prodSku);
+  const explicita = state.engenharia[prodSku] || [];
+  const skusJaPresentes = new Set(explicita.map(b => b.sku));
+  const tiposJaPresentes = new Set(explicita.map(b => b.tipo));
+  const kitId = detectarKitProduto(prod);
+  const kit = kitId ? (state.kitsCompartilhados && state.kitsCompartilhados[kitId]) : null;
+  if (!kit) return explicita;
+  const merged = [...explicita];
+  for (const item of kit.bom) {
+    // Se já existe um item com mesmo SKU, pula
+    if (skusJaPresentes.has(item.sku)) continue;
+    // Se já existe um item com mesmo tipo (ex: TAMPA), respeita a explícita (não duplica)
+    if (tiposJaPresentes.has(item.tipo)) continue;
+    merged.push({ ...item, _fromKit: kitId });
+  }
+  return merged;
+}
+
+// ============================================================
+// PERSISTÊNCIA (IndexedDB)
+// ============================================================
+const DB_NAME = 'comprasDB';
+const DB_VER = 1;
+let dbInstance = null;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    if (dbInstance) return resolve(dbInstance);
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('kv')) db.createObjectStore('kv');
+    };
+    req.onsuccess = (e) => { dbInstance = e.target.result; resolve(dbInstance); };
+    req.onerror = (e) => reject(e);
+  });
+}
+
+async function saveEntity(key) {
+  try {
+    const db = await openDB();
+    return new Promise((res, rej) => {
+      const tx = db.transaction('kv', 'readwrite');
+      tx.objectStore('kv').put(JSON.parse(JSON.stringify(state[key])), key);
+      tx.oncomplete = () => res();
+      tx.onerror = (e) => rej(e);
+    });
+  } catch (e) { console.error('saveEntity', key, e); }
+}
+
+async function loadEntity(key) {
+  try {
+    const db = await openDB();
+    return new Promise((res, rej) => {
+      const tx = db.transaction('kv', 'readonly');
+      const r = tx.objectStore('kv').get(key);
+      r.onsuccess = () => res(r.result);
+      r.onerror = (e) => rej(e);
+    });
+  } catch (e) { console.error('loadEntity', key, e); return null; }
+}
+
+async function loadAll() {
+  const keys = ['produtos','engenharia','insumos','venda','estoquePA','pedidos','lastUpdate','kitsCompartilhados','kitOverrides','followupBase','followup','backupSync'];
+  for (const k of keys) {
+    const v = await loadEntity(k);
+    if (v !== undefined && v !== null) state[k] = v;
+  }
+  // Inicializa kits com defaults se ainda não tem
+  if (!state.kitsCompartilhados) {
+    state.kitsCompartilhados = JSON.parse(JSON.stringify(KITS_DEFAULT));
+    await saveEntity('kitsCompartilhados');
+  }
+  if (!state.kitOverrides) state.kitOverrides = {};
+  // Após carregar, tenta reindexar vendas/estoquePA por SKU (caso usuário tenha arrastado venda antes do SUPLY)
+  reindexarVendasPorSku();
+  reindexarEstoquePAPorSku();
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function norm(s) {
+  return String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+function toNum(v) {
+  if (v === null || v === undefined || v === '') return 0;
+  if (typeof v === 'number') return v;
+  const s = String(v).replace(/\./g, '').replace(',', '.').replace(/[^\d.\-]/g, '');
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+function fmt(n, dec = 0) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+function fmtDate(d) {
+  if (!d) return '—';
+  if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}/.test(d)) {
+    const [y, m, dy] = d.slice(0,10).split('-');
+    return `${dy}/${m}/${y.slice(2)}`;
+  }
+  return d;
+}
+function todayISO() {
+  return new Date().toISOString().slice(0,10);
+}
+function addDaysISO(d, n) {
+  const dt = new Date(d);
+  dt.setDate(dt.getDate() + n);
+  return dt.toISOString().slice(0,10);
+}
+function parseExcelDate(v) {
+  if (!v) return '';
+  if (typeof v === 'number') {
+    const d = new Date((v - 25569) * 86400 * 1000);
+    return d.toISOString().slice(0, 10);
+  }
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  const s = String(v).trim();
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  return '';
+}
+function updateStamp() {
+  const u = state.lastUpdate;
+  const all = [u.venda, u.insumos, u.suply, u.estoquePA, u.followup].filter(Boolean);
+  if (!all.length) { document.getElementById('lastUpdateStamp').textContent = 'Sem dados'; return; }
+  const last = all.sort().pop();
+  const d = new Date(last);
+  document.getElementById('lastUpdateStamp').textContent = `Atualizado ${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`;
+}
+function logUpdate(type, msg) {
+  const div = document.createElement('div');
+  div.className = 'update-log-item ' + type;
+  div.textContent = (type === 'ok' ? '✓ ' : '✕ ') + msg;
+  document.getElementById('updateLog').prepend(div);
+  setTimeout(() => { div.style.opacity = '0.5'; }, 6000);
+}
+function hasMinimumData() {
+  return Object.keys(state.engenharia).length > 0 && Object.keys(state.insumos).length > 0;
+}
+
+// Reindexa state.venda: quando entradas estão por NOME (porque produto não estava cadastrado no momento do parse),
+// tenta resolver pelo SKU agora que temos state.produtos populado.
+function reindexarVendasPorSku() {
+  const novo = {};
+  Object.entries(state.venda).forEach(([k, v]) => {
+    if (k.startsWith('NOME:')) {
+      const nome = v.nome;
+      const prod = state.produtos.find(p => norm(p.descricao) === norm(nome));
+      if (prod) {
+        v.sku = prod.sku;
+        novo[prod.sku] = v;
+      } else {
+        novo[k] = v;
+      }
+    } else {
+      novo[k] = v;
+    }
+  });
+  state.venda = novo;
+}
+
+// Reindexa estoque PA da mesma forma
+function reindexarEstoquePAPorSku() {
+  const novo = {};
+  Object.entries(state.estoquePA).forEach(([k, v]) => {
+    if (k.startsWith('NOME:')) {
+      const prod = state.produtos.find(p => norm(p.descricao) === norm(v.nome));
+      if (prod) { v.sku = prod.sku; novo[prod.sku] = v; }
+      else novo[k] = v;
+    } else novo[k] = v;
+  });
+  state.estoquePA = novo;
+}
+
+// ============================================================
+// PARSERS
+// ============================================================
+// VENDAS — formato: produto x meses
+// Linha 0: cabeçalho com Nov/24, Dez/24, ..., Mai/26, Total
+// Linha 1+: produto / vendas mensais
+function parseVenda(rows) {
+  if (!rows || rows.length < 2) return { error: 'Sem linhas suficientes', data: {} };
+
+  // Localiza cabeçalho — primeira linha com "AnoMes"/"Produto" e meses
+  let headerIdx = -1;
+  for (let i = 0; i < Math.min(rows.length, 5); i++) {
+    const r = (rows[i] || []).map(c => norm(c));
+    if (r.some(c => c === 'anomes' || c === 'produto')) { headerIdx = i; break; }
+  }
+  if (headerIdx < 0) headerIdx = 0;
+  const header = rows[headerIdx];
+
+  // Detectar colunas de meses (formato MMM/YY ou Date)
+  const mesCols = [];
+  for (let i = 1; i < header.length; i++) {
+    const h = String(header[i] || '');
+    // Aceita "Nov/24" ou similar
+    if (/^[A-Za-zÀ-ú]{3,4}\/\d{2,4}$/.test(h)) mesCols.push(i);
+    else if (norm(h) === 'total') break;
+  }
+  if (mesCols.length === 0) return { error: 'Não achei colunas mês/ano', data: {} };
+
+  // Pega últimos 6 meses (para pico6) e M1/M3/M6
+  const ultimos6 = mesCols.slice(-6);
+
+  const data = {};
+  let count = 0;
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r) continue;
+    const produtoNome = String(r[0] || '').trim();
+    if (!produtoNome || norm(produtoNome) === 'produto' || norm(produtoNome) === 'total') continue;
+    // Pular subheader que tem "Vendas" em todas as colunas (linha repetida do Power BI)
+    const segCelula = String(r[1] || '').trim();
+    if (norm(segCelula) === 'vendas') continue;
+
+    const vendas6 = ultimos6.map(c => toNum(r[c]));
+    if (vendas6.every(v => v === 0)) continue; // sem venda → não importa
+
+    const m1 = vendas6[vendas6.length - 1] || 0;
+    const m3 = vendas6.slice(-3).reduce((a,b) => a+b, 0) / 3;
+    const m6 = vendas6.reduce((a,b) => a+b, 0) / 6;
+    const pico6 = Math.max(...vendas6);
+
+    // Tenta achar SKU pelo nome do produto (no cadastro existente)
+    const prod = state.produtos.find(p => norm(p.descricao) === norm(produtoNome));
+    const sku = prod ? prod.sku : null;
+    // Indexa por NOME normalizado também, pra cruzar depois mesmo sem SKU
+    const key = sku || ('NOME:' + norm(produtoNome));
+    data[key] = { nome: produtoNome, sku, m1, m3, m6, pico6, meses: vendas6 };
+    count++;
+  }
+  return { data, count };
+}
+
+// INSUMOS — formato: CÓD / DESCRIÇÃO / QUANT
+function parseInsumos(rows) {
+  if (!rows || rows.length < 2) return { error: 'Sem linhas suficientes', data: [] };
+
+  // Detecta cabeçalho
+  let headerIdx = -1, codCol = -1, descCol = -1, qtdCol = -1;
+  for (let i = 0; i < Math.min(rows.length, 5); i++) {
+    const r = (rows[i] || []).map(c => norm(c));
+    const c1 = r.findIndex(c => c === 'cod' || c === 'cod.' || c === 'codigo' || c === 'sku');
+    const c2 = r.findIndex(c => c.includes('descric'));
+    const c3 = r.findIndex(c => c === 'quant' || c === 'qtd' || c === 'qtd.' || c.includes('estoque'));
+    if (c1 >= 0 && c3 >= 0) {
+      headerIdx = i; codCol = c1; descCol = c2 >= 0 ? c2 : 1; qtdCol = c3;
+      break;
+    }
+  }
+  if (headerIdx < 0) return { error: 'Não achei cabeçalho COD/DESCRIÇÃO/QUANT', data: [] };
+
+  const data = [];
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r) continue;
+    const sku = parseInt(r[codCol]);
+    if (isNaN(sku)) continue;
+    const nome = String(r[descCol] || '').trim();
+    const qtd = toNum(r[qtdCol]);
+    if (!nome) continue;
+    data.push({ sku, nome, estoque: qtd });
+  }
+  return { data };
+}
+
+// ESTOQUE PA — formato: Produto / Disp.PE / Dias Est.PE / Disp.SP / Dias Est.SP
+function parseEstoquePA(rows) {
+  if (!rows || rows.length < 2) return { error: 'Sem linhas suficientes', data: {} };
+
+  // Cabeçalho com 2 níveis (filial + Disp/Dias)
+  let headerIdx = -1, peCol = -1, spCol = -1;
+  for (let i = 0; i < Math.min(rows.length, 5); i++) {
+    const r = (rows[i] || []).map(c => norm(c));
+    if (r.some(c => c.includes('disp'))) {
+      headerIdx = i;
+      // Estrutura típica: col0=produto, col1=disp PE, col2=dias PE, col3=disp SP, col4=dias SP
+      // Tenta achar as duas colunas Disp
+      let dispIdxs = [];
+      r.forEach((c, idx) => { if (c.includes('disp')) dispIdxs.push(idx); });
+      if (dispIdxs.length >= 2) { peCol = dispIdxs[0]; spCol = dispIdxs[1]; }
+      else { peCol = 1; spCol = 3; }
+      break;
+    }
+  }
+  if (headerIdx < 0) {
+    // Tenta cabeçalho com formato "PERNAMBUCO MATRIZ", "SÃO PAULO"
+    for (let i = 0; i < Math.min(rows.length, 5); i++) {
+      const r = (rows[i] || []).map(c => norm(c));
+      const idxPE = r.findIndex(c => c.includes('pernambuco') || c.includes('matriz') || c === 'pe');
+      const idxSP = r.findIndex(c => c.includes('sao paulo') || c === 'sp');
+      if (idxPE >= 0 && idxSP >= 0) {
+        // próxima linha tem Disp / Dias Est. — pular linha de subcabeçalho
+        headerIdx = i + 1;
+        peCol = idxPE; spCol = idxSP;
+        break;
+      }
+    }
+  }
+  if (headerIdx < 0) return { error: 'Não achei cabeçalho com Disp PE/SP', data: {} };
+
+  const data = {};
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r) continue;
+    const produtoNome = String(r[0] || '').trim();
+    if (!produtoNome) continue;
+    const pe = toNum(r[peCol]);
+    const sp = toNum(r[spCol]);
+    if (pe === 0 && sp === 0) continue;
+    const prod = state.produtos.find(p => norm(p.descricao) === norm(produtoNome));
+    const sku = prod ? prod.sku : null;
+    const key = sku || ('NOME:' + norm(produtoNome));
+    data[key] = { nome: produtoNome, sku, pe, sp };
+  }
+  return { data };
+}
+
+// SUPLY — parseamento de TODAS as abas relevantes do arquivo
+// Cada aba traz, para cada produto, os SKUs dos insumos + qtd
+// Estrutura comum: ITEM/DESCRIÇÃO + SKU + (TAMPA SKU + ETQ + GAP) + (VÁLVULA SKU...) + (FRASCO...) + ESSÊNCIA...
+function parseSuply(workbook) {
+  const result = {
+    produtos: [],        // [{sku, descricao, categoria}]
+    engenharia: {},      // {prodSku: [{sku, qtd, unidade, tipo}]}
+    insumos: {},         // {sku: {nome, categoria, estoque, unidade}} - parcial, só os que vierem
+    avisos: [],
+  };
+
+  // Abas relevantes (que têm engenharia produto→insumo) e volume default por aba
+  // (para calcular qtd em gramas da essência via coluna "%" × volume)
+  const ABAS_VOLUME = {
+    'body splash': 100,
+    'supply - 50ml': 50,
+    'supply - special': 100,
+    'supply - 30ml': 30,
+    'memorias': 100,
+    'memórias': 100,
+    'corpo': 100,
+    'suply - papelaria': 0, // sem essência
+  };
+  const ABAS_BOM = Object.keys(ABAS_VOLUME);
+
+  // Detecta colunas por seção em cada aba
+  // Tipo das colunas que procuramos: TAMPA, VÁLVULA, FRASCO, CARTONAGEM, SLEEV(E), SELO PRATA (antes de SELO), RÓTULO, ESSÊNCIA
+  const TIPOS = [
+    { tipo: 'TAMPA', kw: ['tampa'] },
+    { tipo: 'VÁLVULA', kw: ['valvula', 'válvula'] },
+    { tipo: 'FRASCO', kw: ['frasco'] },
+    { tipo: 'CARTONAGEM', kw: ['cartonagem'] },
+    { tipo: 'SLEEVE', kw: ['sleev'] },
+    { tipo: 'SELO PRATA', kw: ['selo prata'] }, // ANTES de SELO senão "selo prata" casa com "selo"
+    { tipo: 'SELO', kw: ['selo'] },
+    { tipo: 'RÓTULO', kw: ['rotulo', 'rótulo'] },
+    { tipo: 'ESSÊNCIA', kw: ['essencia', 'essência'] },
+  ];
+
+  // Default gramas por unidade quando ESSÊNCIA tem coluna "%" em vez de qtd em gramas
+  // Não vamos confiar nisso — usaremos a coluna ETQ se encontrarmos, senão pulamos.
+
+  for (const abaName of workbook.SheetNames) {
+    const abaNorm = norm(abaName);
+    // Tenta identificar se aba é relevante (BOM por produto)
+    const volumeAba = ABAS_VOLUME[abaNorm] !== undefined ? ABAS_VOLUME[abaNorm] : (abaNorm.includes('supply') || abaNorm.includes('suply') ? 100 : null);
+    if (volumeAba === null) continue;
+
+    const ws = workbook.Sheets[abaName];
+    const arr = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
+    if (!arr || arr.length < 3) continue;
+
+    // 2 linhas de cabeçalho: linha 0 com seções (ESTOQUE, TAMPA, VÁLVULA...) e linha 1 com sub-headers (DESCRIÇÃO, SKU, ETQ...)
+    const h0 = arr[0] || [];
+    const h1 = arr[1] || [];
+
+    // Identificar seções: para cada coluna do h0 (não-vazia), guardamos posição inicial
+    const secoes = []; // {tipo, start}
+    for (let c = 0; c < h0.length; c++) {
+      const v = norm(h0[c] || '');
+      if (!v || v === 'unnamed') continue;
+      const m = TIPOS.find(t => t.kw.some(k => v === k || v.includes(k)));
+      if (m) secoes.push({ tipo: m.tipo, start: c });
+      // ITEM/PRODUTO marker
+      else if (v === 'item' || v === 'produto') secoes.push({ tipo: '__ITEM__', start: c });
+    }
+
+    // Achar coluna do SKU do produto (sub-header "SKU" depois de "ITEM/PRODUTO")
+    let prodNameCol = -1, prodSkuCol = -1;
+    for (const s of secoes) {
+      if (s.tipo === '__ITEM__') {
+        prodNameCol = s.start;
+        // sub-header SKU pode estar em s.start+1 ou +2
+        for (let c = s.start + 1; c < s.start + 4 && c < h1.length; c++) {
+          if (norm(h1[c] || '') === 'sku') { prodSkuCol = c; break; }
+        }
+        break;
+      }
+    }
+    if (prodNameCol < 0 || prodSkuCol < 0) {
+      // Fallback: assumir col 0 = nome, col 1 = SKU
+      prodNameCol = 0;
+      prodSkuCol = 1;
+    }
+
+    // Para cada seção (tipo insumo), achar a coluna do SKU dentro da seção
+    // O sub-header "SKU" deve estar dentro de [start, próximo start)
+    const secCols = []; // {tipo, skuCol, etqCol, qtdCol, nomeCol}
+    for (let i = 0; i < secoes.length; i++) {
+      const s = secoes[i];
+      if (s.tipo === '__ITEM__') continue;
+      const fim = i + 1 < secoes.length ? secoes[i+1].start : h1.length;
+      let skuCol = -1, etqCol = -1, qtdCol = -1, nomeCol = -1;
+      for (let c = s.start; c < fim; c++) {
+        const v = norm(h1[c] || '');
+        if (v === 'sku') skuCol = c;
+        else if (v === 'etq' || v === 'est.' || v === 'est' || v === 'estoque' || v === 'qtd') etqCol = c;
+        else if (v === 'nome') nomeCol = c;
+      }
+      if (skuCol >= 0) secCols.push({ tipo: s.tipo, skuCol, etqCol, qtdCol, nomeCol, start: s.start, fim });
+    }
+
+    // Detectar coluna "%" — usada apenas para essências (calcular gramas/un = % × volumeAba)
+    // Alguns formatos usam "g" direto em vez de % (ex: BODY SPLASH com "g" = 12 significa 12g por un)
+    let pctCol = -1, gramaCol = -1;
+    for (let c = 0; c < h1.length; c++) {
+      const v = String(h1[c] || '').trim();
+      if (v === '%' && pctCol < 0) pctCol = c;
+      else if ((v === 'g' || v === 'G') && gramaCol < 0) gramaCol = c;
+    }
+
+    // Loop linhas de dados
+    for (let r = 2; r < arr.length; r++) {
+      const row = arr[r];
+      if (!row) continue;
+      const prodNome = String(row[prodNameCol] || '').trim();
+      const prodSkuRaw = row[prodSkuCol];
+      if (!prodNome || prodNome === 'Total' || prodNome === 'DESCRIÇÃO') continue;
+      const prodSku = parseInt(prodSkuRaw);
+      if (isNaN(prodSku)) continue;
+
+      // Categoria pela aba
+      let categoria = abaName.toUpperCase();
+
+      // Adiciona produto se ainda não tem
+      if (!result.produtos.find(p => p.sku === prodSku)) {
+        result.produtos.push({ sku: prodSku, descricao: prodNome, categoria });
+      }
+
+      const bom = [];
+      // Lê a % desta linha (se houver) — usada só para calcular gramas da essência
+      let pctValor = null;
+      let gramasDireto = null;
+      if (pctCol >= 0) {
+        const raw = row[pctCol];
+        if (raw !== null && raw !== undefined && raw !== '') {
+          const n = toNum(raw);
+          if (n > 0) {
+            // Se vier inteiro grande (ex: 20) → é percentual, divide por 100
+            // Se vier decimal (ex: 0.20) → já é fração
+            pctValor = n >= 1 ? n / 100 : n;
+          }
+        }
+      }
+      if (gramaCol >= 0) {
+        const raw = row[gramaCol];
+        if (raw !== null && raw !== undefined && raw !== '') {
+          const n = toNum(raw);
+          if (n > 0) gramasDireto = n;
+        }
+      }
+      for (const sc of secCols) {
+        const insSku = parseInt(row[sc.skuCol]);
+        if (isNaN(insSku) || insSku <= 0) continue;
+        const etq = sc.etqCol >= 0 ? toNum(row[sc.etqCol]) : 0;
+        const unidade = sc.tipo === 'ESSÊNCIA' ? 'G' : 'UN';
+        let qtd = 1;
+        if (sc.tipo === 'ESSÊNCIA') {
+          // Prefere gramas direto (coluna "g") sobre cálculo via %
+          if (gramasDireto !== null) {
+            qtd = gramasDireto;
+          } else if (pctValor !== null && volumeAba > 0) {
+            qtd = +(pctValor * volumeAba).toFixed(2);
+          } else {
+            qtd = 0; // usuário precisa editar
+          }
+        }
+        // Evita duplicatas (em alguns formatos a mesma seção aparece duas vezes com X marcador)
+        if (bom.find(b => b.sku === insSku)) continue;
+        bom.push({ sku: insSku, qtd, unidade, tipo: sc.tipo });
+
+        // Salvar/atualizar nome do insumo se vier (para ESSÊNCIA tem coluna NOME)
+        if (sc.nomeCol >= 0 && row[sc.nomeCol]) {
+          const insNome = String(row[sc.nomeCol]).trim();
+          if (!result.insumos[insSku]) result.insumos[insSku] = { nome: insNome, categoria: sc.tipo, estoque: etq, unidade };
+        } else if (etq > 0 && !result.insumos[insSku]) {
+          // Sem nome — só anota estoque (será sobrescrito pelo arquivo de insumos)
+          result.insumos[insSku] = { nome: '', categoria: sc.tipo, estoque: etq, unidade };
+        }
+      }
+      if (bom.length > 0) result.engenharia[prodSku] = bom;
+    }
+  }
+
+  return result;
+}
+
+// ============================================================
+// PROCESSAMENTO DE UPLOAD
+// ============================================================
+async function handleUpload(file, slot) {
+  const buf = await file.arrayBuffer();
+  let wb;
+  try { wb = XLSX.read(buf, { type: 'array' }); }
+  catch (e) { logUpdate('error', `Erro lendo ${file.name}: ${e.message}`); return; }
+
+  // Para insumos: lê a aba que tenha cabeçalho CÓD./DESCRIÇÃO/QUANT
+  // Para venda: primeira aba com formato
+  // Para estoquepa: idem
+  // Para suply: processa TODAS as abas relevantes
+
+  if (slot === 'suply') {
+    const res = parseSuply(wb);
+    // Mesclar produtos: se já existe um produto com o mesmo SKU, sobrescreve descricao/categoria
+    res.produtos.forEach(p => {
+      const existing = state.produtos.find(x => x.sku === p.sku);
+      if (existing) {
+        existing.descricao = p.descricao;
+        if (!existing.categoria) existing.categoria = p.categoria;
+      } else {
+        state.produtos.push(p);
+      }
+    });
+    // Mesclar engenharia: sobrescreve por produto
+    Object.entries(res.engenharia).forEach(([sku, bom]) => {
+      state.engenharia[sku] = bom;
+    });
+    // Atualizar/criar insumos parciais (só nome + categoria, sem mexer no estoque se já existir)
+    Object.entries(res.insumos).forEach(([sku, ins]) => {
+      if (!state.insumos[sku]) {
+        state.insumos[sku] = ins;
+      } else {
+        if (ins.nome) state.insumos[sku].nome = state.insumos[sku].nome || ins.nome;
+        if (ins.categoria) state.insumos[sku].categoria = state.insumos[sku].categoria || ins.categoria;
+      }
+    });
+    state.lastUpdate.suply = new Date().toISOString();
+    // Re-indexa vendas com NOME: → SKU sempre que possível, agora que temos os produtos
+    reindexarVendasPorSku();
+    await saveEntity('produtos');
+    await saveEntity('engenharia');
+    await saveEntity('insumos');
+    await saveEntity('venda');
+    await saveEntity('lastUpdate');
+    document.getElementById('dz-suply').classList.add('has-file');
+    document.getElementById('dzt-suply').textContent = `✓ ${file.name}`;
+    document.getElementById('dzh-suply').textContent = `${Object.keys(res.engenharia).length} engenharias · ${res.produtos.length} produtos`;
+    logUpdate('ok', `SUPLY: ${Object.keys(res.engenharia).length} engenharias e ${res.produtos.length} produtos importados.`);
+  }
+  else if (slot === 'venda') {
+    // Ler primeira aba
+    let arr = null;
+    for (const sheetName of wb.SheetNames) {
+      const a = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: null, raw: true });
+      if (a && a.length > 1) { arr = a; break; }
+    }
+    if (!arr) { logUpdate('error', 'Vendas: aba vazia'); return; }
+    const res = parseVenda(arr);
+    if (res.error) { logUpdate('error', `Vendas: ${res.error}`); return; }
+    state.venda = res.data;
+    reindexarVendasPorSku();
+    state.lastUpdate.venda = new Date().toISOString();
+    await saveEntity('venda');
+    await saveEntity('lastUpdate');
+    document.getElementById('dz-venda').classList.add('has-file');
+    document.getElementById('dzt-venda').textContent = `✓ ${file.name}`;
+    document.getElementById('dzh-venda').textContent = `${res.count} produtos importados`;
+    logUpdate('ok', `Vendas: ${res.count} produtos importados`);
+  }
+  else if (slot === 'insumos') {
+    // Lê a aba mais "principal" — tenta achar a que tem cabeçalho válido
+    let arr = null, sheetUsed = '';
+    // Tenta a última aba primeiro (costuma ser a mais recente quando há múltiplas datas)
+    const tryOrder = [...wb.SheetNames].reverse().concat(wb.SheetNames);
+    const seen = new Set();
+    for (const sheetName of tryOrder) {
+      if (seen.has(sheetName)) continue; seen.add(sheetName);
+      const a = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: null, raw: true });
+      if (!a || a.length < 2) continue;
+      // valida cabeçalho
+      let valid = false;
+      for (let i = 0; i < Math.min(a.length, 5); i++) {
+        const r = (a[i] || []).map(c => norm(c));
+        const c1 = r.some(c => c === 'cod' || c === 'cod.' || c === 'codigo' || c === 'sku');
+        const c2 = r.some(c => c === 'quant' || c === 'qtd' || c === 'qtd.' || c.includes('estoque'));
+        if (c1 && c2) { valid = true; break; }
+      }
+      if (valid) { arr = a; sheetUsed = sheetName; break; }
+    }
+    if (!arr) { logUpdate('error', 'Insumos: não achei aba com formato CÓD/DESCRIÇÃO/QUANT'); return; }
+    const res = parseInsumos(arr);
+    if (res.error) { logUpdate('error', `Insumos: ${res.error}`); return; }
+    let novos = 0, atualizados = 0;
+    res.data.forEach(d => {
+      if (state.insumos[d.sku]) {
+        state.insumos[d.sku].estoque = d.estoque;
+        if (d.nome && !state.insumos[d.sku].nome) state.insumos[d.sku].nome = d.nome;
+        atualizados++;
+      } else {
+        state.insumos[d.sku] = { nome: d.nome, categoria: '', estoque: d.estoque, unidade: 'UN' };
+        novos++;
+      }
+    });
+    state.lastUpdate.insumos = new Date().toISOString();
+    await saveEntity('insumos');
+    await saveEntity('lastUpdate');
+    document.getElementById('dz-insumos').classList.add('has-file');
+    document.getElementById('dzt-insumos').textContent = `✓ ${file.name}`;
+    document.getElementById('dzh-insumos').textContent = `Aba "${sheetUsed}" · ${atualizados} atualizados, ${novos} novos`;
+    logUpdate('ok', `Insumos: ${atualizados} atualizados + ${novos} novos da aba "${sheetUsed}"`);
+  }
+  else if (slot === 'estoquepa') {
+    let arr = null;
+    for (const sheetName of wb.SheetNames) {
+      const a = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: null, raw: true });
+      if (a && a.length > 2) { arr = a; break; }
+    }
+    if (!arr) { logUpdate('error', 'Estoque PA: aba vazia'); return; }
+    const res = parseEstoquePA(arr);
+    if (res.error) { logUpdate('error', `Estoque PA: ${res.error}`); return; }
+    state.estoquePA = res.data;
+    reindexarEstoquePAPorSku();
+    state.lastUpdate.estoquePA = new Date().toISOString();
+    await saveEntity('estoquePA');
+    await saveEntity('lastUpdate');
+    document.getElementById('dz-estoquepa').classList.add('has-file');
+    document.getElementById('dzt-estoquepa').textContent = `✓ ${file.name}`;
+    document.getElementById('dzh-estoquepa').textContent = `${Object.keys(res.data).length} produtos`;
+    logUpdate('ok', `Estoque PA: ${Object.keys(res.data).length} produtos importados`);
+  }
+
+  updateStamp();
+  renderAll();
+}
+
+// ============================================================
+// IMPORTAR BACKUP PCP (para trazer engenharia + insumos do sistema atual)
+// ============================================================
+async function importarBackupPcp(file) {
+  try {
+    const txt = await file.text();
+    const obj = JSON.parse(txt);
+
+    let totalProd = 0, totalEng = 0, totalIns = 0, totalVenda = 0;
+
+    // Produtos
+    if (Array.isArray(obj.produtos)) {
+      obj.produtos.forEach(p => {
+        if (!p.sku) return;
+        const existing = state.produtos.find(x => x.sku === p.sku);
+        if (existing) {
+          existing.descricao = p.descricao || existing.descricao;
+          existing.categoria = existing.categoria || p.categoria || '';
+        } else {
+          state.produtos.push({ sku: p.sku, descricao: p.descricao, categoria: p.categoria || '' });
+        }
+        totalProd++;
+      });
+    }
+
+    // Engenharia
+    if (obj.engenharia && typeof obj.engenharia === 'object') {
+      Object.entries(obj.engenharia).forEach(([sku, bom]) => {
+        if (Array.isArray(bom)) {
+          state.engenharia[sku] = bom.map(b => ({
+            sku: b.sku, qtd: b.qtd || 1, unidade: b.unidade || 'UN', tipo: b.tipo || ''
+          }));
+          totalEng++;
+        }
+      });
+    }
+
+    // Insumos
+    if (obj.insumos && typeof obj.insumos === 'object') {
+      Object.entries(obj.insumos).forEach(([sku, ins]) => {
+        const skuN = parseInt(sku);
+        if (isNaN(skuN)) return;
+        if (state.insumos[skuN]) {
+          // já existe: atualiza nome/categoria mas mantém estoque
+          state.insumos[skuN].nome = state.insumos[skuN].nome || ins.nome || '';
+          state.insumos[skuN].categoria = state.insumos[skuN].categoria || ins.categoria || '';
+          if (typeof ins.estoque === 'number' && !state.insumos[skuN].estoque) state.insumos[skuN].estoque = ins.estoque;
+        } else {
+          state.insumos[skuN] = {
+            nome: ins.nome || '',
+            categoria: ins.categoria || '',
+            estoque: ins.estoque || 0,
+            unidade: ins.unidade || 'UN'
+          };
+        }
+        totalIns++;
+      });
+    }
+
+    // Essências como insumos (categoria=ESSÊNCIA)
+    if (Array.isArray(obj.essencias)) {
+      obj.essencias.forEach(e => {
+        if (!e.sku) return;
+        if (!state.insumos[e.sku]) {
+          state.insumos[e.sku] = {
+            nome: e.nome || '',
+            categoria: 'ESSÊNCIA',
+            estoque: e.estoqueG || 0,
+            unidade: 'G',
+            fornecedor: e.fornecedor || ''
+          };
+          totalIns++;
+        } else {
+          state.insumos[e.sku].categoria = 'ESSÊNCIA';
+          state.insumos[e.sku].unidade = 'G';
+          if (!state.insumos[e.sku].nome) state.insumos[e.sku].nome = e.nome || '';
+        }
+      });
+    }
+
+    // Venda (opcional, pra preview)
+    if (obj.venda && typeof obj.venda === 'object') {
+      Object.entries(obj.venda).forEach(([sku, v]) => {
+        const skuN = parseInt(sku);
+        if (isNaN(skuN)) return;
+        const prod = state.produtos.find(p => p.sku === skuN);
+        const key = skuN;
+        state.venda[key] = {
+          nome: prod ? prod.descricao : '',
+          sku: skuN,
+          m1: v.m1 || 0,
+          m3: v.m3 || 0,
+          m6: v.m6 || 0,
+          pico6: v.pico6 || 0,
+          meses: v.meses || []
+        };
+        totalVenda++;
+      });
+    }
+
+    await saveEntity('produtos');
+    await saveEntity('engenharia');
+    await saveEntity('insumos');
+    reindexarVendasPorSku();
+    reindexarEstoquePAPorSku();
+    await saveEntity('venda');
+    state.lastUpdate.suply = new Date().toISOString();
+    if (totalVenda > 0) state.lastUpdate.venda = new Date().toISOString();
+    if (totalIns > 0) state.lastUpdate.insumos = new Date().toISOString();
+    await saveEntity('lastUpdate');
+
+    document.getElementById('pcpImportStatus').textContent = `✓ ${totalProd} produtos, ${totalEng} engenharias, ${totalIns} insumos, ${totalVenda} vendas`;
+    document.getElementById('pcpImportStatus').style.color = 'var(--ok)';
+    logUpdate('ok', `Backup PCP importado: ${totalEng} engenharias, ${totalIns} insumos`);
+    updateStamp();
+    renderAll();
+  } catch (e) {
+    document.getElementById('pcpImportStatus').textContent = '✕ Erro: ' + e.message;
+    document.getElementById('pcpImportStatus').style.color = 'var(--critical)';
+    logUpdate('error', 'Erro ao importar backup: ' + e.message);
+  }
+}
+
+// ============================================================
+// CÁLCULO CENTRAL: para cada insumo, quanto é consumido e quanto comprar
+// ============================================================
+function calcularSugestoes(estrategiaVenda = 'm3', gatilhoDias = 60, coberturaDias = 90) {
+  // Helper: detecta se um insumo é essência (ignorado neste sistema — gerenciado no PCP)
+  const isEssencia = (sku, ins) => {
+    if (!ins) return false;
+    const cat = (ins.categoria || '').toUpperCase();
+    return cat === 'ESSÊNCIA' || cat === 'ESSENCIA';
+  };
+
+  // Index reverso: insumoSku → [{produto, qtdPorUn}]
+  // Usa engenharia EFETIVA (explícita + kit compartilhado da linha)
+  const usoPorInsumo = {};
+  state.produtos.forEach(prod => {
+    const bom = getEngenhariaEfetiva(prod.sku);
+    bom.forEach(b => {
+      if (!b.sku) return;
+      // Pula essências — esse sistema é só pra insumos físicos
+      if (b.tipo === 'ESSÊNCIA') return;
+      if (!usoPorInsumo[b.sku]) usoPorInsumo[b.sku] = [];
+      usoPorInsumo[b.sku].push({ produto: prod, qtdPorUn: b.qtd || 1, unidade: b.unidade || 'UN', tipo: b.tipo || '', fromKit: b._fromKit || null });
+    });
+  });
+
+  // Função: pegar venda mensal estimada de um produto
+  function vendaMensal(prodSku, prodNome) {
+    // tenta por SKU; senão por nome
+    let v = state.venda[prodSku];
+    if (!v && prodNome) v = state.venda['NOME:' + norm(prodNome)];
+    if (!v) return 0;
+    switch (estrategiaVenda) {
+      case 'm1': return v.m1 || 0;
+      case 'm6': return v.m6 || 0;
+      case 'pico6': return v.pico6 || 0;
+      case 'pico6_m3': return Math.max(v.m3 || 0, v.pico6 || 0);
+      case 'm3':
+      default: return v.m3 || 0;
+    }
+  }
+
+  // Pedidos abertos por insumo
+  const pedidoPorInsumo = {};
+  (state.pedidos || []).filter(p => p.status === 'aberto').forEach(p => {
+    pedidoPorInsumo[p.insumoSku] = (pedidoPorInsumo[p.insumoSku] || 0) + (p.qtd || 0);
+  });
+
+  // Lista de sugestões
+  const linhas = [];
+  for (const skuStr of Object.keys(state.insumos)) {
+    const sku = parseInt(skuStr);
+    const ins = state.insumos[sku];
+    // Pula essências — gerenciadas no sistema PCP, não aqui
+    if (isEssencia(sku, ins)) continue;
+    const usos = usoPorInsumo[sku] || [];
+    let demanda = 0;
+    const detalheUsos = [];
+    usos.forEach(u => {
+      const vm = vendaMensal(u.produto.sku, u.produto.descricao);
+      const cons = vm * (u.qtdPorUn || 1);
+      demanda += cons;
+      detalheUsos.push({ produtoSku: u.produto.sku, produtoNome: u.produto.descricao, vm, qtdPorUn: u.qtdPorUn || 1, consMes: cons });
+    });
+    const estoque = ins.estoque || 0;
+    const emPedido = pedidoPorInsumo[sku] || 0;
+    const disponivel = estoque + emPedido;
+    const diasCob = demanda > 0 ? Math.round((disponivel / (demanda / 30))) : (disponivel > 0 ? 999 : 0);
+    // Quantidade a comprar = demanda × (coberturaDias/30) - disponivel (se positivo)
+    let comprar = 0;
+    if (demanda > 0 && diasCob < gatilhoDias) {
+      const necessario = demanda * (coberturaDias / 30);
+      comprar = Math.max(0, Math.ceil(necessario - disponivel));
+    }
+    let status;
+    if (usos.length === 0) status = 'orfao';
+    else if (diasCob < 15) status = 'crit';
+    else if (diasCob < gatilhoDias) status = 'warn';
+    else status = 'ok';
+
+    linhas.push({
+      sku, nome: ins.nome, categoria: ins.categoria, unidade: ins.unidade || 'UN',
+      estoque, emPedido, demanda, diasCob, comprar, status,
+      usos: usos.length, detalheUsos
+    });
+  }
+  return linhas;
+}
+
+// ============================================================
+// RENDER: DASHBOARD
+// ============================================================
+function renderDashboard() {
+  const hasData = hasMinimumData();
+  document.getElementById('dashNoData').classList.toggle('hidden', hasData);
+  if (!hasData) { document.getElementById('dashKpis').innerHTML = ''; return; }
+
+  const linhas = calcularSugestoes(
+    document.getElementById('paramVenda').value,
+    +document.getElementById('paramGatilho').value,
+    +document.getElementById('paramCobertura').value
+  );
+
+  const crits = linhas.filter(l => l.status === 'crit');
+  const warns = linhas.filter(l => l.status === 'warn');
+  const aComprar = linhas.filter(l => l.comprar > 0);
+  const pedAberto = (state.pedidos || []).filter(p => p.status === 'aberto');
+
+  document.getElementById('dashKpis').innerHTML = `
+    <div class="kpi critical">
+      <div class="kpi-label">Críticos</div>
+      <div class="kpi-value">${crits.length}</div>
+      <div class="kpi-sub">Cobertura &lt; 15 dias</div>
+    </div>
+    <div class="kpi warn">
+      <div class="kpi-label">Atenção</div>
+      <div class="kpi-value">${warns.length}</div>
+      <div class="kpi-sub">Abaixo do gatilho de 60d</div>
+    </div>
+    <div class="kpi info">
+      <div class="kpi-label">A comprar</div>
+      <div class="kpi-value">${aComprar.length}</div>
+      <div class="kpi-sub">SKUs com sugestão ativa</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Pedidos em aberto</div>
+      <div class="kpi-value">${pedAberto.length}</div>
+      <div class="kpi-sub">Aguardando entrega</div>
+    </div>
+    <div class="kpi ok">
+      <div class="kpi-label">Insumos OK</div>
+      <div class="kpi-value">${linhas.filter(l => l.status === 'ok').length}</div>
+      <div class="kpi-sub">Cobertura ≥ 60d</div>
+    </div>
+  `;
+
+  // Top 10 críticos
+  const top10 = [...crits, ...warns].sort((a,b) => a.diasCob - b.diasCob).slice(0, 10);
+  document.getElementById('dashCriticosTbody').innerHTML = top10.map(l => `
+    <tr>
+      <td>
+        <div style="font-weight:500">${l.nome || '—'}</div>
+        <div style="font-size:11px;color:var(--text-dim)" class="mono">${l.sku}</div>
+      </td>
+      <td class="right"><span class="days-cell days-low">${l.diasCob}d</span></td>
+      <td class="right mono">${l.comprar > 0 ? fmt(l.comprar) + ' ' + l.unidade : '—'}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--text-dim)">Sem itens críticos ✓</td></tr>';
+
+  // Próximas entregas
+  const proximas = pedAberto.filter(p => p.dataPrevista).sort((a,b) => (a.dataPrevista || '').localeCompare(b.dataPrevista || '')).slice(0, 10);
+  document.getElementById('dashEntregasTbody').innerHTML = proximas.map(p => `
+    <tr>
+      <td>
+        <div style="font-weight:500">${p.insumoNome || state.insumos[p.insumoSku]?.nome || '—'}</div>
+        <div style="font-size:11px;color:var(--text-dim)" class="mono">${p.insumoSku}</div>
+      </td>
+      <td class="mono">${p.numero || '—'}</td>
+      <td class="right">${fmtDate(p.dataPrevista)}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--text-dim)">Sem pedidos abertos</td></tr>';
+}
+
+// ============================================================
+// RENDER: SUGESTÃO DE COMPRA
+// ============================================================
+function renderSugestao() {
+  const hasData = hasMinimumData();
+  document.getElementById('sugNoData').classList.toggle('hidden', hasData);
+  if (!hasData) { document.getElementById('sugTbody').innerHTML = ''; return; }
+
+  const linhas = calcularSugestoes(
+    document.getElementById('paramVenda').value,
+    +document.getElementById('paramGatilho').value,
+    +document.getElementById('paramCobertura').value
+  );
+
+  let filtered = linhas;
+  // Filtro
+  if (state.sugFilter === 'crit') filtered = filtered.filter(l => l.status === 'crit');
+  else if (state.sugFilter === 'warn') filtered = filtered.filter(l => l.status === 'warn');
+  else if (state.sugFilter === 'ok') filtered = filtered.filter(l => l.status === 'ok');
+  else if (state.sugFilter === 'comprar') filtered = filtered.filter(l => l.comprar > 0);
+  // Não mostrar órfãos por padrão (sem uso na engenharia)
+  filtered = filtered.filter(l => l.status !== 'orfao' || state.sugSearch);
+  // Busca
+  if (state.sugSearch) {
+    const q = norm(state.sugSearch);
+    filtered = filtered.filter(l =>
+      norm(l.nome).includes(q) ||
+      String(l.sku).includes(q) ||
+      norm(l.categoria).includes(q)
+    );
+  }
+  // Ordenação
+  const k = state.sugSortKey;
+  const dir = state.sugSortDir === 'desc' ? -1 : 1;
+  filtered.sort((a,b) => {
+    let av = a[k], bv = b[k];
+    if (typeof av === 'string') return av.localeCompare(bv) * dir;
+    return ((av || 0) - (bv || 0)) * dir;
+  });
+
+  const tbody = document.getElementById('sugTbody');
+  tbody.innerHTML = filtered.map(l => {
+    const stClass = l.status === 'crit' ? 'badge-crit' : l.status === 'warn' ? 'badge-warn' : 'badge-ok';
+    const stLabel = l.status === 'crit' ? '🚨 CRÍTICO' : l.status === 'warn' ? '⚠ Atenção' : '✓ OK';
+    const rowClass = l.status === 'crit' ? 'row-crit' : (l.status === 'warn' ? 'row-warn' : '');
+    const diasCls = l.diasCob < 15 ? 'days-low' : l.diasCob < 60 ? 'days-med' : 'days-ok';
+    const diasShow = l.diasCob >= 999 ? '∞' : l.diasCob;
+    return `
+      <tr class="${rowClass}">
+        <td class="mono"><a href="#" class="sku-link" data-show-usos="${l.sku}">${l.sku}</a></td>
+        <td>${l.nome || '—'}</td>
+        <td><span class="badge badge-neutral">${l.categoria || '—'}</span></td>
+        <td class="right">${l.usos > 0 ? `<a href="#" class="sku-link" data-show-usos="${l.sku}">${l.usos}</a>` : '<span style="color:var(--text-dim)">0</span>'}</td>
+        <td class="right mono">${fmt(l.estoque)} ${l.unidade}</td>
+        <td class="right mono">${l.emPedido > 0 ? '<span style="color:var(--info)">' + fmt(l.emPedido) + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>
+        <td class="right mono">${l.demanda > 0 ? fmt(l.demanda) : '<span style="color:var(--text-dim)">—</span>'}</td>
+        <td class="right"><span class="days-cell ${diasCls}">${diasShow}${l.diasCob < 999 ? 'd' : ''}</span></td>
+        <td class="right mono">${l.comprar > 0 ? '<b>' + fmt(l.comprar) + ' ' + l.unidade + '</b>' : '<span style="color:var(--text-dim)">—</span>'}</td>
+        <td><span class="badge ${stClass}">${stLabel}</span></td>
+        <td class="center">
+          <button class="btn btn-sm ${l.comprar > 0 ? 'btn-gold' : ''}" data-novo-pedido-sku="${l.sku}" data-novo-pedido-qtd="${l.comprar || 0}" title="${l.comprar > 0 ? 'Comprar quantidade sugerida' : 'Comprar mesmo sem necessidade'}">🛒 Comprar</button>
+        </td>
+      </tr>
+    `;
+  }).join('') || '<tr><td colspan="11" style="text-align:center;color:var(--text-dim);padding:24px">Nenhum insumo nesse filtro</td></tr>';
+
+  // Handlers
+  tbody.querySelectorAll('[data-novo-pedido-sku]').forEach(btn => {
+    btn.onclick = () => abrirModalPedido({ insumoSku: +btn.dataset.novoPedidoSku, qtd: +btn.dataset.novoPedidoQtd });
+  });
+  tbody.querySelectorAll('[data-show-usos]').forEach(a => {
+    a.onclick = (e) => { e.preventDefault(); mostrarUsosInsumo(+a.dataset.showUsos); };
+  });
+}
+
+// ============================================================
+// RENDER: ANDAMENTO
+// ============================================================
+function renderAndamento() {
+  const hoje = todayISO();
+  const fimSemana = addDaysISO(hoje, 7);
+
+  let lista = (state.pedidos || []).filter(p => p.status !== 'entregue' && p.status !== 'cancelado');
+  if (state.andFilter === 'aberto') lista = lista.filter(p => p.status === 'aberto');
+  else if (state.andFilter === 'atrasado') lista = lista.filter(p => p.status === 'aberto' && p.dataPrevista && p.dataPrevista < hoje);
+  else if (state.andFilter === 'proximo') lista = lista.filter(p => p.status === 'aberto' && p.dataPrevista && p.dataPrevista >= hoje && p.dataPrevista <= fimSemana);
+
+  if (state.andSearch) {
+    const q = norm(state.andSearch);
+    lista = lista.filter(p =>
+      norm(p.numero).includes(q) ||
+      norm(p.insumoNome || state.insumos[p.insumoSku]?.nome || '').includes(q) ||
+      norm(p.fornecedor).includes(q) ||
+      String(p.insumoSku).includes(q)
+    );
+  }
+
+  lista.sort((a,b) => (a.dataPrevista || '9999').localeCompare(b.dataPrevista || '9999'));
+
+  const tbody = document.getElementById('andTbody');
+  tbody.innerHTML = lista.map(p => {
+    const atrasado = p.dataPrevista && p.dataPrevista < hoje && p.status === 'aberto';
+    const rowCls = atrasado ? 'row-warn' : '';
+    const nome = p.insumoNome || state.insumos[p.insumoSku]?.nome || '—';
+    const un = state.insumos[p.insumoSku]?.unidade || 'UN';
+    return `
+      <tr class="${rowCls}">
+        <td class="mono"><b>${p.numero || '—'}</b></td>
+        <td>
+          <div style="font-weight:500">${nome}</div>
+          <div style="font-size:11px;color:var(--text-dim)" class="mono">SKU ${p.insumoSku}</div>
+        </td>
+        <td>${p.fornecedor || '—'}</td>
+        <td class="right mono">${fmt(p.qtd)} ${un}</td>
+        <td>${fmtDate(p.dataPedido)}</td>
+        <td>${fmtDate(p.dataPrevista)} ${atrasado ? '<span class="badge badge-crit" style="margin-left:6px">atrasado</span>' : ''}</td>
+        <td><span class="badge badge-info">${p.status}</span></td>
+        <td class="center">
+          <button class="btn btn-sm btn-ok" data-entregar="${p.id}">✓ Entregue</button>
+          <button class="btn btn-sm" data-editar-ped="${p.id}">✏</button>
+          <button class="btn btn-sm btn-danger" data-cancelar="${p.id}">✕</button>
+        </td>
+      </tr>
+    `;
+  }).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:24px">Nenhum pedido nesse filtro</td></tr>';
+
+  tbody.querySelectorAll('[data-entregar]').forEach(b => b.onclick = () => marcarEntregue(b.dataset.entregar));
+  tbody.querySelectorAll('[data-cancelar]').forEach(b => b.onclick = () => cancelarPedido(b.dataset.cancelar));
+  tbody.querySelectorAll('[data-editar-ped]').forEach(b => b.onclick = () => editarPedido(b.dataset.editarPed));
+}
+
+// ============================================================
+// RENDER: HISTÓRICO
+// ============================================================
+function renderHistorico() {
+  let lista = (state.pedidos || []).filter(p => p.status === 'entregue' || p.status === 'cancelado');
+  if (state.histFilter === 'entregue') lista = lista.filter(p => p.status === 'entregue');
+  else if (state.histFilter === 'cancelado') lista = lista.filter(p => p.status === 'cancelado');
+
+  if (state.histSearch) {
+    const q = norm(state.histSearch);
+    lista = lista.filter(p =>
+      norm(p.numero).includes(q) ||
+      norm(p.insumoNome || state.insumos[p.insumoSku]?.nome || '').includes(q) ||
+      norm(p.fornecedor).includes(q)
+    );
+  }
+  lista.sort((a,b) => (b.dataEntregue || b.criadoEm || '').localeCompare(a.dataEntregue || a.criadoEm || ''));
+
+  const tbody = document.getElementById('histTbody');
+  tbody.innerHTML = lista.map(p => {
+    const nome = p.insumoNome || state.insumos[p.insumoSku]?.nome || '—';
+    const un = state.insumos[p.insumoSku]?.unidade || 'UN';
+    const stCls = p.status === 'entregue' ? 'badge-ok' : 'badge-neutral';
+    const stLabel = p.status === 'entregue' ? '✓ Entregue' : '✕ Cancelado';
+    return `
+      <tr>
+        <td class="mono">${p.numero || '—'}</td>
+        <td>
+          <div style="font-weight:500">${nome}</div>
+          <div style="font-size:11px;color:var(--text-dim)" class="mono">SKU ${p.insumoSku}</div>
+        </td>
+        <td>${p.fornecedor || '—'}</td>
+        <td class="right mono">${fmt(p.qtd)} ${un}</td>
+        <td>${fmtDate(p.dataPedido)}</td>
+        <td>${fmtDate(p.dataEntregue || p.dataPrevista)}</td>
+        <td><span class="badge ${stCls}">${stLabel}</span></td>
+        <td class="center"><button class="btn btn-sm btn-danger" data-del-hist="${p.id}">🗑</button></td>
+      </tr>
+    `;
+  }).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:24px">Nenhum pedido no histórico</td></tr>';
+
+  tbody.querySelectorAll('[data-del-hist]').forEach(b => b.onclick = async () => {
+    if (!confirm('Excluir este pedido do histórico? (não estornará nada do estoque)')) return;
+    state.pedidos = state.pedidos.filter(p => p.id !== b.dataset.delHist);
+    await saveEntity('pedidos');
+    renderHistorico(); renderDashboard();
+  });
+}
+
+// ============================================================
+// RENDER: KITS COMPARTILHADOS
+// ============================================================
+function renderKits() {
+  // Atualizar contagem do badge de overrides
+  const overrides = Object.keys(state.kitOverrides || {}).length;
+  document.getElementById('kitOverridesCount').textContent = overrides;
+
+  if (state.kitTabAtual === 'kits') renderKitsList();
+  else if (state.kitTabAtual === 'produtos') renderKitProdList();
+  else if (state.kitTabAtual === 'overrides') renderKitOverridesList();
+}
+
+function renderKitsList() {
+  // Contar produtos por kit (com base na detecção automática + overrides)
+  const cntPorKit = {};
+  state.produtos.forEach(prod => {
+    const id = detectarKitProduto(prod);
+    if (id) cntPorKit[id] = (cntPorKit[id] || 0) + 1;
+  });
+
+  const kits = state.kitsCompartilhados || {};
+  const list = document.getElementById('kitsList');
+  if (Object.keys(kits).length === 0) {
+    list.innerHTML = '<div class="card" style="padding:24px;text-align:center;color:var(--text-dim)">Nenhum kit cadastrado. Clique em + Novo kit pra começar.</div>';
+    return;
+  }
+  list.innerHTML = Object.entries(kits).map(([id, kit]) => `
+    <div class="card" style="padding:16px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:start;gap:16px;flex-wrap:wrap">
+        <div style="flex:1;min-width:240px">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <h3 style="font-size:14px;margin:0">${kit.nome || id}</h3>
+            <span class="badge badge-info">${id}</span>
+            <span class="badge badge-neutral">${cntPorKit[id] || 0} produtos</span>
+          </div>
+          <p style="font-size:12px;color:var(--text-muted);margin-top:6px">${kit.descricao || '—'}</p>
+        </div>
+        <button class="btn btn-sm" data-edit-kit="${id}">⚙️ Editar</button>
+      </div>
+      <div style="margin-top:12px;border-top:1px solid var(--border-soft);padding-top:10px">
+        <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Insumos aplicados em cada produto da linha:</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          ${(kit.bom || []).map(b => {
+            const ins = state.insumos[b.sku];
+            return `<div style="background:var(--bg-overlay);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px">
+              <span class="mono" style="color:var(--accent)">${b.sku}</span>
+              <span style="color:var(--text-muted);margin:0 6px">·</span>
+              <span>${ins?.nome || '<span style="color:var(--warn)">não cadastrado</span>'}</span>
+              <span style="color:var(--text-dim);margin-left:6px">${b.qtd}${b.unidade}</span>
+              <span style="color:var(--text-dim);margin-left:6px">[${b.tipo}]</span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('[data-edit-kit]').forEach(btn => btn.onclick = () => abrirModalKit(btn.dataset.editKit));
+}
+
+function renderKitProdList() {
+  let lista = [...state.produtos];
+  if (state.kitProdSearch) {
+    const q = norm(state.kitProdSearch);
+    lista = lista.filter(p => norm(p.descricao).includes(q) || String(p.sku).includes(q));
+  }
+  lista.sort((a,b) => (a.descricao || '').localeCompare(b.descricao || ''));
+
+  const tbody = document.getElementById('kitProdTbody');
+  tbody.innerHTML = lista.map(p => {
+    const kitId = detectarKitProduto(p);
+    const kit = kitId ? state.kitsCompartilhados[kitId] : null;
+    const override = state.kitOverrides[p.sku];
+    const detectAuto = (() => {
+      // detecção SEM override
+      const overridesBackup = state.kitOverrides;
+      state.kitOverrides = {};
+      const r = detectarKitProduto(p);
+      state.kitOverrides = overridesBackup;
+      return r;
+    })();
+    const isOverridden = override !== undefined;
+    const items = kit ? kit.bom.map(b => {
+      const ins = state.insumos[b.sku];
+      return `<span style="background:var(--bg-overlay);border:1px solid var(--border-soft);border-radius:4px;padding:2px 6px;font-size:11px;display:inline-block;margin:2px"><span class="mono" style="color:var(--accent)">${b.sku}</span> ${b.tipo}</span>`;
+    }).join('') : '<span style="color:var(--text-dim)">—</span>';
+    const kitNome = kitId ? (kit?.nome || kitId) : '<span style="color:var(--text-dim)">nenhum</span>';
+    const overrideLabel = isOverridden ? `<span class="badge badge-warn" style="margin-left:6px">override</span>` : '';
+    return `
+      <tr>
+        <td class="mono">${p.sku}</td>
+        <td>${p.descricao || '—'}</td>
+        <td>${kitNome}${overrideLabel}</td>
+        <td>${items}</td>
+        <td class="center">
+          <button class="btn btn-sm" data-change-kit="${p.sku}">↕ Alterar</button>
+          ${isOverridden ? `<button class="btn btn-sm" data-reset-kit="${p.sku}" title="Voltar à detecção automática">↺</button>` : ''}
+        </td>
+      </tr>
+    `;
+  }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:24px">Nenhum produto</td></tr>';
+
+  tbody.querySelectorAll('[data-change-kit]').forEach(b => b.onclick = () => abrirEscolherKit(+b.dataset.changeKit));
+  tbody.querySelectorAll('[data-reset-kit]').forEach(b => b.onclick = async () => {
+    delete state.kitOverrides[+b.dataset.resetKit];
+    await saveEntity('kitOverrides');
+    renderKits();
+    renderSugestao();
+  });
+}
+
+function renderKitOverridesList() {
+  const overrides = Object.entries(state.kitOverrides || {});
+  const tbody = document.getElementById('kitOverridesTbody');
+  if (overrides.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:24px">Nenhum override manual cadastrado. Os produtos usam apenas detecção automática.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = overrides.map(([sku, kitId]) => {
+    const prod = state.produtos.find(p => p.sku === parseInt(sku));
+    if (!prod) return '';
+    const overridesBackup = state.kitOverrides;
+    state.kitOverrides = {};
+    const detectAuto = detectarKitProduto(prod);
+    state.kitOverrides = overridesBackup;
+    const autoNome = detectAuto ? (state.kitsCompartilhados[detectAuto]?.nome || detectAuto) : '<span style="color:var(--text-dim)">nenhum</span>';
+    const manualNome = kitId === '__NONE__' ? '<span class="badge badge-neutral">DESABILITADO</span>' : (state.kitsCompartilhados[kitId]?.nome || kitId);
+    return `
+      <tr>
+        <td class="mono">${sku}</td>
+        <td>${prod.descricao}</td>
+        <td>${autoNome}</td>
+        <td>${manualNome}</td>
+        <td class="center"><button class="btn btn-sm btn-danger" data-remove-override="${sku}">🗑</button></td>
+      </tr>
+    `;
+  }).join('');
+  tbody.querySelectorAll('[data-remove-override]').forEach(b => b.onclick = async () => {
+    delete state.kitOverrides[+b.dataset.removeOverride];
+    await saveEntity('kitOverrides');
+    renderKits();
+    renderSugestao();
+  });
+}
+
+// MODAL: editar kit
+function abrirModalKit(kitId) {
+  const isNovo = !kitId;
+  const kit = isNovo ? { nome: '', descricao: '', bom: [] } : state.kitsCompartilhados[kitId];
+  if (!kit) return;
+  state.kitEditingId = kitId || null;
+  state.kitEditingBom = JSON.parse(JSON.stringify(kit.bom || []));
+  document.getElementById('modalKitTitle').textContent = isNovo ? 'Novo kit' : `Editar kit: ${kit.nome}`;
+  document.getElementById('kitEditId').value = kitId || '';
+  document.getElementById('kitEditId').readOnly = !isNovo;
+  document.getElementById('kitEditNome').value = kit.nome || '';
+  document.getElementById('kitEditDesc').value = kit.descricao || '';
+  document.getElementById('btnDeleteKit').style.display = isNovo ? 'none' : '';
+  renderKitEditBom();
+  openModal('modalKit');
+}
+
+function renderKitEditBom() {
+  const tbody = document.getElementById('kitEditBomTbody');
+  const tipos = ['TAMPA', 'VÁLVULA', 'FRASCO', 'CARTONAGEM', 'RÓTULO', 'SLEEVE', 'SELO', 'SELO PRATA', 'OUTRO'];
+  tbody.innerHTML = state.kitEditingBom.map((b, idx) => {
+    const ins = state.insumos[b.sku];
+    return `
+      <tr>
+        <td><input type="number" data-kit-bom-sku="${idx}" value="${b.sku || ''}" style="width:90px"></td>
+        <td style="color:var(--text-muted);font-size:12px">${ins?.nome || '<span style="color:var(--text-dim)">não cadastrado</span>'}</td>
+        <td>
+          <select data-kit-bom-tipo="${idx}">
+            ${tipos.map(t => `<option value="${t}" ${b.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}
+          </select>
+        </td>
+        <td><input type="number" data-kit-bom-qtd="${idx}" value="${b.qtd || 1}" step="0.001" style="width:80px"></td>
+        <td>
+          <select data-kit-bom-un="${idx}">
+            <option value="UN" ${b.unidade === 'UN' ? 'selected' : ''}>UN</option>
+            <option value="G" ${b.unidade === 'G' ? 'selected' : ''}>G</option>
+            <option value="ML" ${b.unidade === 'ML' ? 'selected' : ''}>ML</option>
+          </select>
+        </td>
+        <td><button class="btn btn-sm btn-danger" data-kit-bom-del="${idx}">🗑</button></td>
+      </tr>
+    `;
+  }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:14px">Sem insumos — clique em Adicionar</td></tr>';
+
+  tbody.querySelectorAll('[data-kit-bom-sku]').forEach(inp => inp.onchange = () => {
+    state.kitEditingBom[+inp.dataset.kitBomSku].sku = parseInt(inp.value) || null;
+    renderKitEditBom();
+  });
+  tbody.querySelectorAll('[data-kit-bom-tipo]').forEach(sel => sel.onchange = () => {
+    state.kitEditingBom[+sel.dataset.kitBomTipo].tipo = sel.value;
+  });
+  tbody.querySelectorAll('[data-kit-bom-qtd]').forEach(inp => inp.onchange = () => {
+    state.kitEditingBom[+inp.dataset.kitBomQtd].qtd = parseFloat(inp.value) || 0;
+  });
+  tbody.querySelectorAll('[data-kit-bom-un]').forEach(sel => sel.onchange = () => {
+    state.kitEditingBom[+sel.dataset.kitBomUn].unidade = sel.value;
+  });
+  tbody.querySelectorAll('[data-kit-bom-del]').forEach(b => b.onclick = () => {
+    state.kitEditingBom.splice(+b.dataset.kitBomDel, 1);
+    renderKitEditBom();
+  });
+}
+
+// MODAL: escolher kit (override)
+function abrirEscolherKit(prodSku) {
+  const prod = state.produtos.find(p => p.sku === prodSku);
+  if (!prod) return;
+  state.kitEscolhendoProdSku = prodSku;
+  document.getElementById('modalEscolherKitTitle').textContent = `Alterar kit: ${prod.descricao}`;
+  const sel = document.getElementById('escolherKitSel');
+  const overridesBackup = state.kitOverrides;
+  state.kitOverrides = {};
+  const detectAuto = detectarKitProduto(prod);
+  state.kitOverrides = overridesBackup;
+  let opts = `<option value="__AUTO__">— Automático (${detectAuto ? state.kitsCompartilhados[detectAuto]?.nome || detectAuto : 'nenhum'}) —</option>`;
+  opts += `<option value="__NONE__">⊘ Não aplicar nenhum kit</option>`;
+  opts += '<option disabled>──────────</option>';
+  for (const [id, kit] of Object.entries(state.kitsCompartilhados)) {
+    const selected = state.kitOverrides[prodSku] === id ? 'selected' : '';
+    opts += `<option value="${id}" ${selected}>${kit.nome || id}</option>`;
+  }
+  sel.innerHTML = opts;
+  if (state.kitOverrides[prodSku] === '__NONE__') sel.value = '__NONE__';
+  else if (!state.kitOverrides[prodSku]) sel.value = '__AUTO__';
+  openModal('modalEscolherKit');
+}
+
+// ============================================================
+// RENDER: ENGENHARIAS
+// ============================================================
+function renderEngenharias() {
+  document.getElementById('engKpiProd').textContent = state.produtos.length;
+  document.getElementById('engKpiEng').textContent = Object.keys(state.engenharia).length;
+  const semEng = state.produtos.filter(p => !state.engenharia[p.sku] || state.engenharia[p.sku].length === 0).length;
+  document.getElementById('engKpiFalta').textContent = semEng;
+
+  let lista = [...state.produtos];
+  if (state.engFilter === 'com') lista = lista.filter(p => state.engenharia[p.sku]?.length > 0);
+  else if (state.engFilter === 'sem') lista = lista.filter(p => !state.engenharia[p.sku] || state.engenharia[p.sku].length === 0);
+  if (state.engSearch) {
+    const q = norm(state.engSearch);
+    lista = lista.filter(p => norm(p.descricao).includes(q) || String(p.sku).includes(q));
+  }
+  lista.sort((a,b) => (a.descricao || '').localeCompare(b.descricao || ''));
+
+  const tbody = document.getElementById('engTbody');
+  tbody.innerHTML = lista.map(p => {
+    const bom = state.engenharia[p.sku] || [];
+    const v = state.venda[p.sku] || state.venda['NOME:' + norm(p.descricao)] || {};
+    return `
+      <tr>
+        <td class="mono">${p.sku}</td>
+        <td>${p.descricao || '—'}</td>
+        <td class="right">${bom.length > 0 ? bom.length + ' itens' : '<span style="color:var(--warn)">—</span>'}</td>
+        <td class="right mono">${v.m3 ? fmt(v.m3) : '<span style="color:var(--text-dim)">—</span>'}</td>
+        <td class="center">
+          <button class="btn btn-sm" data-edit-eng="${p.sku}">⚙️ Editar</button>
+        </td>
+      </tr>
+    `;
+  }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:24px">Nenhum produto</td></tr>';
+
+  tbody.querySelectorAll('[data-edit-eng]').forEach(b => b.onclick = () => abrirModalEngenharia(+b.dataset.editEng));
+}
+
+// ============================================================
+// RENDER: INSUMOS
+// ============================================================
+function renderInsumos() {
+  // Helper: detecta se é essência (excluída deste sistema)
+  const isEss = (ins) => {
+    const cat = (ins.categoria || '').toUpperCase();
+    return cat === 'ESSÊNCIA' || cat === 'ESSENCIA';
+  };
+
+  const cats = new Set();
+  Object.values(state.insumos).forEach(i => { if (i.categoria && !isEss(i)) cats.add(i.categoria); });
+  const catSel = document.getElementById('insCatFilter');
+  const cur = catSel.value;
+  catSel.innerHTML = '<option value="">Todas as categorias</option>' + [...cats].sort().map(c => `<option value="${c}">${c}</option>`).join('');
+  catSel.value = cur;
+
+  // Usos por insumo (quantos produtos usam) — usa engenharia EFETIVA (com kits)
+  const usoCount = {};
+  state.produtos.forEach(prod => {
+    const bom = getEngenhariaEfetiva(prod.sku);
+    bom.forEach(b => {
+      if (!b.sku) return;
+      if (b.tipo === 'ESSÊNCIA') return;
+      usoCount[b.sku] = (usoCount[b.sku] || 0) + 1;
+    });
+  });
+
+  let lista = Object.entries(state.insumos)
+    .filter(([sku, ins]) => !isEss(ins))
+    .map(([sku, ins]) => ({ sku: +sku, ...ins, usos: usoCount[sku] || 0 }));
+  if (state.insCatFilter) lista = lista.filter(i => i.categoria === state.insCatFilter);
+  if (state.insSearch) {
+    const q = norm(state.insSearch);
+    lista = lista.filter(i => norm(i.nome).includes(q) || String(i.sku).includes(q) || norm(i.categoria).includes(q));
+  }
+  lista.sort((a,b) => (a.nome || '').localeCompare(b.nome || ''));
+
+  const tbody = document.getElementById('insTbody');
+  tbody.innerHTML = lista.map(i => `
+    <tr>
+      <td class="mono">${i.sku}</td>
+      <td>${i.nome || '—'}</td>
+      <td><span class="badge badge-neutral">${i.categoria || '—'}</span></td>
+      <td class="right">${i.unidade || 'UN'}</td>
+      <td class="right mono">${fmt(i.estoque)}</td>
+      <td class="right">${i.usos > 0 ? `<a href="#" class="sku-link" data-show-usos="${i.sku}">${i.usos}</a>` : '<span style="color:var(--text-dim)">—</span>'}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:24px">Nenhum insumo cadastrado</td></tr>';
+
+  tbody.querySelectorAll('[data-show-usos]').forEach(a => {
+    a.onclick = (e) => { e.preventDefault(); mostrarUsosInsumo(+a.dataset.showUsos); };
+  });
+}
+
+// ============================================================
+// MODAIS
+// ============================================================
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+// --- Modal novo pedido ---
+function abrirModalPedido(opts = {}) {
+  const sel = document.getElementById('pedInsumoSku');
+  const isEss = (ins) => {
+    const cat = (ins.categoria || '').toUpperCase();
+    return cat === 'ESSÊNCIA' || cat === 'ESSENCIA';
+  };
+  const ops = Object.entries(state.insumos)
+    .filter(([sku, ins]) => !isEss(ins))
+    .map(([sku, ins]) => ({ sku: +sku, nome: ins.nome }))
+    .sort((a,b) => (a.nome || '').localeCompare(b.nome || ''));
+  sel.innerHTML = '<option value="">— Selecione —</option>' + ops.map(o => `<option value="${o.sku}">${o.sku} · ${o.nome}</option>`).join('');
+  if (opts.insumoSku) sel.value = opts.insumoSku;
+  document.getElementById('pedNumero').value = opts.numero || '';
+  document.getElementById('pedQtd').value = opts.qtd || '';
+  document.getElementById('pedFornecedor').value = opts.fornecedor || '';
+  document.getElementById('pedDataPedido').value = opts.dataPedido || todayISO();
+  document.getElementById('pedDataEntrega').value = opts.dataPrevista || addDaysISO(todayISO(), 30);
+  document.getElementById('pedObs').value = opts.observacoes || '';
+  document.getElementById('modalPedidoTitle').textContent = opts.id ? 'Editar pedido' : 'Novo pedido de compra';
+  // Guardar id se for edição
+  document.getElementById('btnSalvarPedido').dataset.editId = opts.id || '';
+  openModal('modalPedido');
+}
+
+async function salvarPedido() {
+  const sku = parseInt(document.getElementById('pedInsumoSku').value);
+  const qtd = parseFloat(document.getElementById('pedQtd').value);
+  if (!sku || isNaN(qtd) || qtd <= 0) { alert('Selecione um insumo e digite uma quantidade válida.'); return; }
+  const editId = document.getElementById('btnSalvarPedido').dataset.editId;
+  const ins = state.insumos[sku];
+  const pedido = {
+    id: editId || ('PED-' + Date.now() + '-' + sku),
+    numero: document.getElementById('pedNumero').value.trim(),
+    insumoSku: sku,
+    insumoNome: ins?.nome || '',
+    qtd,
+    fornecedor: document.getElementById('pedFornecedor').value.trim(),
+    dataPedido: document.getElementById('pedDataPedido').value,
+    dataPrevista: document.getElementById('pedDataEntrega').value,
+    observacoes: document.getElementById('pedObs').value.trim(),
+    status: 'aberto',
+    criadoEm: new Date().toISOString(),
+  };
+  if (editId) {
+    const idx = state.pedidos.findIndex(p => p.id === editId);
+    if (idx >= 0) {
+      pedido.status = state.pedidos[idx].status; // preserva status
+      pedido.dataEntregue = state.pedidos[idx].dataEntregue;
+      state.pedidos[idx] = pedido;
+    }
+  } else {
+    state.pedidos.push(pedido);
+  }
+  await saveEntity('pedidos');
+  closeModal('modalPedido');
+  renderAll();
+}
+
+async function marcarEntregue(id) {
+  const p = state.pedidos.find(x => x.id === id);
+  if (!p) return;
+  if (!confirm(`Marcar "${p.numero || 'pedido'}" como ENTREGUE?\n\nIsso vai SOMAR ${fmt(p.qtd)} ${state.insumos[p.insumoSku]?.unidade || 'UN'} ao estoque de "${state.insumos[p.insumoSku]?.nome}".`)) return;
+  p.status = 'entregue';
+  p.dataEntregue = todayISO();
+  // Soma ao estoque
+  if (state.insumos[p.insumoSku]) {
+    state.insumos[p.insumoSku].estoque = (state.insumos[p.insumoSku].estoque || 0) + (p.qtd || 0);
+  }
+  await saveEntity('pedidos');
+  await saveEntity('insumos');
+  renderAll();
+}
+
+async function cancelarPedido(id) {
+  const p = state.pedidos.find(x => x.id === id);
+  if (!p) return;
+  if (!confirm(`Cancelar pedido "${p.numero || 'sem nº'}"? Não soma nada ao estoque.`)) return;
+  p.status = 'cancelado';
+  await saveEntity('pedidos');
+  renderAll();
+}
+
+function editarPedido(id) {
+  const p = state.pedidos.find(x => x.id === id);
+  if (!p) return;
+  abrirModalPedido({ ...p });
+}
+
+// --- Modal engenharia ---
+function abrirModalEngenharia(prodSku) {
+  const prod = state.produtos.find(p => p.sku === prodSku);
+  if (!prod) return;
+  state.engEditingProd = prodSku;
+  state.engEditingBom = JSON.parse(JSON.stringify(state.engenharia[prodSku] || []));
+  document.getElementById('modalEngTitle').textContent = `Engenharia: ${prod.descricao} (SKU ${prod.sku})`;
+  renderEngEdit();
+  openModal('modalEng');
+}
+
+function renderEngEdit() {
+  const tbody = document.getElementById('engEditTbody');
+  const tipos = ['TAMPA', 'VÁLVULA', 'FRASCO', 'CARTONAGEM', 'RÓTULO', 'SLEEVE', 'SELO', 'SELO PRATA', 'ESSÊNCIA', 'OUTRO'];
+  tbody.innerHTML = state.engEditingBom.map((b, idx) => {
+    const ins = state.insumos[b.sku];
+    return `
+      <tr>
+        <td><input type="number" data-bom-sku="${idx}" value="${b.sku || ''}" style="width:90px"></td>
+        <td style="color:var(--text-muted);font-size:12px">${ins?.nome || '<span style="color:var(--text-dim)">não cadastrado</span>'}</td>
+        <td>
+          <select data-bom-tipo="${idx}">
+            ${tipos.map(t => `<option value="${t}" ${b.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}
+          </select>
+        </td>
+        <td><input type="number" data-bom-qtd="${idx}" value="${b.qtd || 0}" step="0.001" style="width:80px"></td>
+        <td>
+          <select data-bom-un="${idx}">
+            <option value="UN" ${b.unidade === 'UN' ? 'selected' : ''}>UN</option>
+            <option value="G" ${b.unidade === 'G' ? 'selected' : ''}>G</option>
+            <option value="ML" ${b.unidade === 'ML' ? 'selected' : ''}>ML</option>
+          </select>
+        </td>
+        <td><button class="btn btn-sm btn-danger" data-bom-del="${idx}">🗑</button></td>
+      </tr>
+    `;
+  }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:14px">Sem insumos cadastrados — clique em Adicionar</td></tr>';
+
+  // Handlers
+  tbody.querySelectorAll('[data-bom-sku]').forEach(inp => inp.onchange = () => {
+    const idx = +inp.dataset.bomSku;
+    state.engEditingBom[idx].sku = parseInt(inp.value) || null;
+    renderEngEdit();
+  });
+  tbody.querySelectorAll('[data-bom-tipo]').forEach(sel => sel.onchange = () => {
+    const idx = +sel.dataset.bomTipo;
+    state.engEditingBom[idx].tipo = sel.value;
+    if (sel.value === 'ESSÊNCIA') {
+      state.engEditingBom[idx].unidade = 'G';
+      renderEngEdit();
+    }
+  });
+  tbody.querySelectorAll('[data-bom-qtd]').forEach(inp => inp.onchange = () => {
+    const idx = +inp.dataset.bomQtd;
+    state.engEditingBom[idx].qtd = parseFloat(inp.value) || 0;
+  });
+  tbody.querySelectorAll('[data-bom-un]').forEach(sel => sel.onchange = () => {
+    const idx = +sel.dataset.bomUn;
+    state.engEditingBom[idx].unidade = sel.value;
+  });
+  tbody.querySelectorAll('[data-bom-del]').forEach(b => b.onclick = () => {
+    state.engEditingBom.splice(+b.dataset.bomDel, 1);
+    renderEngEdit();
+  });
+}
+
+// Modal usos do insumo
+function mostrarUsosInsumo(sku) {
+  const ins = state.insumos[sku];
+  if (!ins) return;
+  const linhas = calcularSugestoes(
+    document.getElementById('paramVenda').value,
+    +document.getElementById('paramGatilho').value,
+    +document.getElementById('paramCobertura').value
+  );
+  const l = linhas.find(x => x.sku === sku);
+  document.getElementById('modalUsosTitle').textContent = `Usos: ${ins.nome} (SKU ${sku})`;
+  const tbody = document.getElementById('modalUsosTbody');
+  if (!l || !l.detalheUsos || l.detalheUsos.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:14px">Nenhum produto cadastrado usa este insumo na engenharia</td></tr>';
+  } else {
+    const sorted = [...l.detalheUsos].sort((a,b) => b.consMes - a.consMes);
+    tbody.innerHTML = sorted.map(u => `
+      <tr>
+        <td class="mono">${u.produtoSku}</td>
+        <td>${u.produtoNome}</td>
+        <td class="right mono">${fmt(u.vm)}</td>
+        <td class="right mono">${u.qtdPorUn} ${ins.unidade || 'UN'}</td>
+        <td class="right mono"><b>${fmt(u.consMes)}</b></td>
+      </tr>
+    `).join('');
+  }
+  openModal('modalUsos');
+}
+
+// ============================================================
+// EXPORTAR/IMPORTAR BACKUP
+// ============================================================
+function montarBackupObj() {
+  return {
+    produtos: state.produtos,
+    engenharia: state.engenharia,
+    insumos: state.insumos,
+    venda: state.venda,
+    estoquePA: state.estoquePA,
+    pedidos: state.pedidos,
+    kitsCompartilhados: state.kitsCompartilhados,
+    kitOverrides: state.kitOverrides,
+    followupBase: state.followupBase,
+    followup: state.followup,
+    lastUpdate: state.lastUpdate,
+    exportedAt: new Date().toISOString(),
+    version: 3,
+  };
+}
+
+function baixarJson(obj, nome) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nome;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function exportarBackup() {
+  baixarJson(montarBackupObj(), `compras_backup_${todayISO()}.json`);
+}
+
+// Exporta com o nome fixo backup.json — é este arquivo que vai pro git.
+async function exportarBackupGit() {
+  baixarJson(montarBackupObj(), 'backup.json');
+  alert('Arquivo "backup.json" baixado.\n\nAgora coloque-o na pasta do repositório (substituindo o anterior) e dê commit/push.\nNa próxima vez que alguém abrir o sistema, ele já vai carregar esses dados.');
+}
+
+// Aplica um objeto de backup ao estado e persiste. Usado por importação manual e auto-carga.
+async function aplicarBackupObj(obj) {
+  if (obj.produtos) state.produtos = obj.produtos;
+  if (obj.engenharia) state.engenharia = obj.engenharia;
+  if (obj.insumos) state.insumos = obj.insumos;
+  if (obj.venda) state.venda = obj.venda;
+  if (obj.estoquePA) state.estoquePA = obj.estoquePA;
+  if (obj.pedidos) state.pedidos = obj.pedidos;
+  if (obj.kitsCompartilhados) state.kitsCompartilhados = obj.kitsCompartilhados;
+  if (obj.kitOverrides) state.kitOverrides = obj.kitOverrides;
+  if (obj.followupBase) state.followupBase = obj.followupBase;
+  if (obj.followup) state.followup = obj.followup;
+  if (obj.lastUpdate) state.lastUpdate = obj.lastUpdate;
+  state.backupSync = { loadedExportedAt: obj.exportedAt || null };
+  for (const k of ['produtos','engenharia','insumos','venda','estoquePA','pedidos','kitsCompartilhados','kitOverrides','followupBase','followup','lastUpdate','backupSync']) await saveEntity(k);
+}
+
+async function importarBackup(file) {
+  try {
+    const txt = await file.text();
+    const obj = JSON.parse(txt);
+    if (!confirm('Importar este backup vai SOBRESCREVER todos os dados atuais (produtos, engenharia, insumos, pedidos, follow-up). Continuar?')) return;
+    await aplicarBackupObj(obj);
+    alert('Backup importado ✓');
+    updateStamp();
+    renderAll();
+  } catch (e) {
+    alert('Erro ao importar: ' + e.message);
+  }
+}
+
+// Considera o estado "vazio" quando não há dados relevantes carregados ainda.
+function estadoVazio() {
+  return (!state.produtos || !state.produtos.length)
+    && (!state.followupBase || !state.followupBase.length)
+    && (!state.pedidos || !state.pedidos.length)
+    && Object.keys(state.engenharia || {}).length === 0;
+}
+
+function backupTemDados(obj) {
+  if (!obj) return false;
+  return (obj.produtos && obj.produtos.length)
+    || (obj.followupBase && obj.followupBase.length)
+    || (obj.pedidos && obj.pedidos.length)
+    || (obj.engenharia && Object.keys(obj.engenharia).length);
+}
+
+// Ao abrir: lê o backup.json do repositório (mesmo diretório do HTML).
+// - Se o navegador está vazio: carrega automaticamente.
+// - Se já tem dados e o backup do repo é mais novo que o último carregado: mostra um aviso (sem sobrescrever sozinho).
+async function carregarBackupDoRepo() {
+  let obj;
+  try {
+    const resp = await fetch('./backup.json', { cache: 'no-store' });
+    if (!resp.ok) return;
+    obj = await resp.json();
+  } catch (e) {
+    return; // arquivo ausente ou aberto via file:// — segue com dados locais
+  }
+  if (!backupTemDados(obj)) return;
+
+  if (estadoVazio()) {
+    await aplicarBackupObj(obj);
+    updateStamp();
+    renderAll();
+    return;
+  }
+
+  const jaCarregado = state.backupSync && state.backupSync.loadedExportedAt;
+  const maisNovo = obj.exportedAt && (!jaCarregado || obj.exportedAt > jaCarregado);
+  if (maisNovo) mostrarAvisoBackup(obj);
+}
+
+function mostrarAvisoBackup(obj) {
+  const el = document.getElementById('backupBanner');
+  if (!el) return;
+  const quando = obj.exportedAt ? new Date(obj.exportedAt).toLocaleString('pt-BR') : '';
+  document.getElementById('backupBannerText').textContent =
+    `Há um backup mais recente no repositório${quando ? ' (de ' + quando + ')' : ''}. Carregar agora? Isso substitui os dados deste navegador.`;
+  el.style.display = 'flex';
+  document.getElementById('backupBannerLoad').onclick = async () => {
+    await aplicarBackupObj(obj);
+    updateStamp();
+    renderAll();
+    el.style.display = 'none';
+  };
+  document.getElementById('backupBannerIgnore').onclick = async () => {
+    // marca como visto pra não insistir até o próximo commit
+    state.backupSync = { loadedExportedAt: obj.exportedAt || null };
+    await saveEntity('backupSync');
+    el.style.display = 'none';
+  };
+}
+
+// ============================================================
+// EXPORTAR SUGESTÃO PARA EXCEL
+// ============================================================
+function exportarSugestaoExcel() {
+  const linhas = calcularSugestoes(
+    document.getElementById('paramVenda').value,
+    +document.getElementById('paramGatilho').value,
+    +document.getElementById('paramCobertura').value
+  ).filter(l => l.comprar > 0);
+
+  const rows = [
+    ['SKU Insumo', 'Nome', 'Categoria', 'Estoque atual', 'Em pedido', 'Demanda mensal', 'Dias de cobertura', 'Comprar', 'Unidade', 'Status'],
+    ...linhas.map(l => [
+      l.sku, l.nome, l.categoria, l.estoque, l.emPedido, Math.round(l.demanda),
+      l.diasCob, l.comprar, l.unidade, l.status
+    ])
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:10},{wch:32},{wch:14},{wch:14},{wch:12},{wch:14},{wch:14},{wch:14},{wch:8},{wch:10}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Sugestão de Compras');
+  XLSX.writeFile(wb, `sugestao_compras_${todayISO()}.xlsx`);
+}
+
+// ============================================================
+// TEMPLATE PEDIDOS / IMPORTAR PEDIDOS EM MASSA
+// ============================================================
+function baixarTemplatePedido() {
+  const rows = [
+    ['SKU Insumo', 'Quantidade', 'Nº Pedido', 'Fornecedor', 'Data Pedido', 'Previsão Entrega', 'Observações'],
+    [4014, 5000, '12345', 'AUDACE', todayISO(), addDaysISO(todayISO(), 30), 'Pedido tampas Barcelona'],
+    [4044, 50000, '12346', 'VOLLMENS', todayISO(), addDaysISO(todayISO(), 45), ''],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:12},{wch:14},{wch:14},{wch:18},{wch:14},{wch:18},{wch:30}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Pedidos');
+  XLSX.writeFile(wb, 'template_pedidos.xlsx');
+}
+
+async function importarPedidos(file) {
+  try {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
+
+    // Detectar cabeçalho
+    let hIdx = -1, skuC = -1, qtdC = -1, numC = -1, fornC = -1, dpC = -1, dprevC = -1, obsC = -1;
+    for (let i = 0; i < Math.min(rows.length, 5); i++) {
+      const r = (rows[i] || []).map(c => norm(c));
+      const s = r.findIndex(c => c === 'sku' || c.startsWith('sku') || c === 'cod' || c === 'codigo');
+      const q = r.findIndex(c => c.includes('quant') || c === 'qtd');
+      if (s >= 0 && q >= 0) {
+        hIdx = i; skuC = s; qtdC = q;
+        numC = r.findIndex(c => c.includes('numero') || c.includes('pedido') && !c.includes('data') && !c.includes('previsao'));
+        if (numC === q) numC = -1;
+        if (numC < 0) numC = r.findIndex(c => c.startsWith('n') && c.includes('pedido'));
+        fornC = r.findIndex(c => c.includes('forn'));
+        dpC = r.findIndex(c => c.includes('data') && c.includes('pedido'));
+        if (dpC < 0) dpC = r.findIndex(c => c === 'data');
+        dprevC = r.findIndex(c => c.includes('previsao') || c.includes('entrega'));
+        obsC = r.findIndex(c => c.includes('obs'));
+        break;
+      }
+    }
+    if (hIdx < 0) { alert('Não achei cabeçalho. Use o template.'); return; }
+
+    const importados = [];
+    for (let i = hIdx + 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r) continue;
+      const sku = parseInt(r[skuC]);
+      const qtd = parseFloat(String(r[qtdC] || '').replace(',', '.'));
+      if (isNaN(sku) || isNaN(qtd) || qtd <= 0) continue;
+      const ins = state.insumos[sku];
+      importados.push({
+        id: 'PED-' + Date.now() + '-' + sku + '-' + i,
+        numero: numC >= 0 ? String(r[numC] || '').trim() : '',
+        insumoSku: sku,
+        insumoNome: ins?.nome || '(não cadastrado)',
+        qtd,
+        fornecedor: fornC >= 0 ? String(r[fornC] || '').trim() : '',
+        dataPedido: dpC >= 0 ? parseExcelDate(r[dpC]) : todayISO(),
+        dataPrevista: dprevC >= 0 ? parseExcelDate(r[dprevC]) : '',
+        observacoes: obsC >= 0 ? String(r[obsC] || '').trim() : '',
+        status: 'aberto',
+        criadoEm: new Date().toISOString(),
+      });
+    }
+    if (!importados.length) { alert('Nenhuma linha válida.'); return; }
+    if (!confirm(`Importar ${importados.length} pedido(s)?`)) return;
+    state.pedidos = (state.pedidos || []).concat(importados);
+    await saveEntity('pedidos');
+    renderAll();
+    alert(`✓ ${importados.length} pedido(s) importados`);
+  } catch (e) {
+    alert('Erro: ' + e.message);
+  }
+}
+
+// ============================================================
+// NAVEGAÇÃO
+// ============================================================
+function showView(v) {
+  document.querySelectorAll('.view').forEach(el => el.classList.add('hidden'));
+  const el = document.getElementById('view-' + v);
+  if (el) el.classList.remove('hidden');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.view === v));
+  document.getElementById('drawer').classList.remove('show');
+  document.getElementById('drawerBackdrop').classList.remove('show');
+  const titles = {
+    dashboard: 'Dashboard',
+    sugestao: 'Sugestão de Compra',
+    andamento: 'Pedidos em Aberto',
+    followup: 'Follow-up de Entregas',
+    historico: 'Histórico',
+    atualizar: 'Atualizar Dados',
+    kits: 'Kits Compartilhados',
+    engenharia: 'Engenharias',
+    insumos: 'Insumos',
+  };
+  document.getElementById('breadcrumb').textContent = titles[v] || '';
+  // Render do view
+  if (v === 'dashboard') renderDashboard();
+  else if (v === 'sugestao') renderSugestao();
+  else if (v === 'andamento') renderAndamento();
+  else if (v === 'followup') renderFollowup();
+  else if (v === 'historico') renderHistorico();
+  else if (v === 'kits') renderKits();
+  else if (v === 'engenharia') renderEngenharias();
+  else if (v === 'insumos') renderInsumos();
+}
+
+function renderAll() {
+  renderDashboard();
+  renderSugestao();
+  renderAndamento();
+  renderFollowup();
+  renderHistorico();
+  renderKits();
+  renderEngenharias();
+  renderInsumos();
+}
+
+// ============================================================
+// FOLLOW-UP DE ENTREGAS
+// ============================================================
+
+// Apenas pedidos deste comprador entram no follow-up (comparação tolerante a maiúsculas/acentos).
+const FUP_COMPRADOR = 'lucas santos';
+
+// Localiza o índice da linha de cabeçalho dentro das primeiras linhas da aba.
+function fupAcharHeader(rows) {
+  for (let i = 0; i < Math.min(rows.length, 12); i++) {
+    const r = (rows[i] || []).map(c => norm(c));
+    const temPedido = r.some(c => c.includes('pedido'));
+    const temAberta = r.some(c => c.includes('aberta') || c.includes('aberto'));
+    if (temPedido && temAberta) return i;
+  }
+  return 0;
+}
+
+// Mapeia nomes de coluna -> índice, tolerante a variações.
+function fupMapCols(header) {
+  const H = header.map(c => norm(c));
+  // procura por correspondência exata primeiro, depois "contém", ignorando índices excluídos
+  const acha = (termos, excl = []) => {
+    for (const t of termos) { const i = H.findIndex((c, idx) => c === t && !excl.includes(idx)); if (i >= 0) return i; }
+    for (const t of termos) { const i = H.findIndex((c, idx) => c.includes(t) && !excl.includes(idx)); if (i >= 0) return i; }
+    return -1;
+  };
+  const codItem = acha(['cod. item', 'cod item', 'codigo item', 'cod do item', 'cod.']);
+  const qtdEntregue = acha(['qtde entregue', 'quantidade entregue']);
+  const qtdeAberta = acha(['qtde aberta', 'quantidade aberta']);
+  const dataAjustada = acha(['data entrega ajustada', 'entrega ajustada', 'data ajustada']);
+  return {
+    numero: acha(['no do pedido', 'n do pedido', 'numero do pedido', 'pedido']),
+    comprador: acha(['comprador']),
+    dataPedido: acha(['data do pedido']),
+    dataPrevista: acha(['data de entrega prevista', 'data de entrega', 'entrega prevista', 'previsao'], dataAjustada >= 0 ? [dataAjustada] : []),
+    fornecedor: acha(['nome do cliente/fornecedor', 'fornecedor', 'cliente']),
+    codItem,
+    item: acha(['item'], codItem >= 0 ? [codItem] : []),
+    qtde: acha(['qtde', 'quantidade'], [qtdeAberta, qtdEntregue].filter(x => x >= 0)),
+    qtdeAberta,
+    valorAberto: acha(['valor aberto']),
+    saldoAberto: acha(['saldo aberto']),
+    // colunas do arquivo exportado pelo próprio sistema (para reimportar anotações)
+    dataAjustada,
+    situacao: acha(['situacao', 'situa\u00e7\u00e3o', 'entregue'], qtdEntregue >= 0 ? [qtdEntregue] : []),
+    qtdEntregue,
+    obs: acha(['observacoes', 'observa\u00e7\u00f5es', 'observ']),
+  };
+}
+
+function fupChave(numero, codItem, occ) {
+  return `${String(numero).trim()}::${String(codItem).trim()}::${occ}`;
+}
+
+// Lê a planilha do SAP (ou o arquivo exportado) e devolve {linhas, anotacoesArquivo}.
+function parseFollowupCompras(wb) {
+  // escolhe a aba com mais linhas que pareça conter pedidos
+  let melhor = null, melhorScore = -1;
+  for (const nome of wb.SheetNames) {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[nome], { header: 1, defval: null, raw: true });
+    if (!rows.length) continue;
+    const hi = fupAcharHeader(rows);
+    const cols = fupMapCols(rows[hi] || []);
+    let score = rows.length;
+    if (cols.numero >= 0 && cols.qtdeAberta >= 0) score += 100000;
+    if (score > melhorScore) { melhorScore = score; melhor = { rows, hi, cols }; }
+  }
+  if (!melhor) return { linhas: [], anotacoesArquivo: {} };
+
+  const { rows, hi, cols } = melhor;
+  if (cols.numero < 0 || cols.qtdeAberta < 0) {
+    throw new Error('Não encontrei as colunas "Nº do Pedido" e/ou "Qtde Aberta" na planilha.');
+  }
+
+  const linhas = [];
+  const anotacoesArquivo = {};
+  const ocorrencias = {};
+
+  for (let i = hi + 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r) continue;
+    const numero = r[cols.numero];
+    if (numero === null || numero === undefined || numero === '') continue;
+
+    const qtdeAberta = toNum(cols.qtdeAberta >= 0 ? r[cols.qtdeAberta] : 0);
+    if (!(qtdeAberta > 0)) continue; // FILTRO: só itens com Qtde Aberta > 0
+
+    // FILTRO: apenas o comprador definido (Lucas Santos)
+    if (cols.comprador >= 0) {
+      const comp = norm(r[cols.comprador]);
+      if (!comp.includes(FUP_COMPRADOR)) continue;
+    }
+
+    const codItem = cols.codItem >= 0 && r[cols.codItem] != null ? String(r[cols.codItem]).trim() : '';
+    const baseKey = `${String(numero).trim()}::${codItem}`;
+    ocorrencias[baseKey] = (ocorrencias[baseKey] || 0) + 1;
+    const occ = ocorrencias[baseKey];
+    const chave = fupChave(numero, codItem, occ);
+
+    linhas.push({
+      chave,
+      numero: String(numero).trim(),
+      comprador: cols.comprador >= 0 ? (r[cols.comprador] ?? '') : '',
+      dataPedido: cols.dataPedido >= 0 ? parseExcelDate(r[cols.dataPedido]) : '',
+      dataPrevista: cols.dataPrevista >= 0 ? parseExcelDate(r[cols.dataPrevista]) : '',
+      fornecedor: cols.fornecedor >= 0 ? String(r[cols.fornecedor] ?? '') : '',
+      codItem,
+      item: cols.item >= 0 ? String(r[cols.item] ?? '') : '',
+      qtde: cols.qtde >= 0 ? toNum(r[cols.qtde]) : 0,
+      qtdeAberta,
+      valorAberto: cols.valorAberto >= 0 ? toNum(r[cols.valorAberto]) : 0,
+      saldoAberto: cols.saldoAberto >= 0 ? toNum(r[cols.saldoAberto]) : 0,
+    });
+
+    // Se o arquivo for o exportado pelo sistema, recupera as anotações dele
+    const temColsAnotacao = cols.dataAjustada >= 0 || cols.situacao >= 0 || cols.obs >= 0;
+    if (temColsAnotacao) {
+      const sitRaw = cols.situacao >= 0 ? norm(r[cols.situacao]) : '';
+      let situacao = '';
+      if (sitRaw.includes('parcial')) situacao = 'parcial';
+      else if (sitRaw === 'sim' || sitRaw.includes('entregue') || sitRaw.includes('total')) situacao = 'entregue';
+      const dataAjustada = cols.dataAjustada >= 0 ? parseExcelDate(r[cols.dataAjustada]) : '';
+      const obs = cols.obs >= 0 ? String(r[cols.obs] ?? '').trim() : '';
+      const qtdEntregue = cols.qtdEntregue >= 0 ? toNum(r[cols.qtdEntregue]) : 0;
+      if (dataAjustada || situacao || obs || qtdEntregue) {
+        anotacoesArquivo[chave] = {
+          dataEntrega: dataAjustada,
+          situacao: situacao || 'pendente',
+          qtdEntregue,
+          obs,
+          atualizadoEm: new Date().toISOString(),
+        };
+      }
+    }
+  }
+  return { linhas, anotacoesArquivo };
+}
+
+async function handleUploadFollowup(file) {
+  let buf, wb;
+  try {
+    buf = await file.arrayBuffer();
+    wb = XLSX.read(buf, { type: 'array' });
+  } catch (e) {
+    fupLog('error', `Erro lendo ${file.name}: ${e.message}`);
+    return;
+  }
+  let res;
+  try { res = parseFollowupCompras(wb); }
+  catch (e) { fupLog('error', e.message); return; }
+
+  if (!res.linhas.length) {
+    fupLog('error', 'Nenhum item com Qtde Aberta > 0 encontrado na planilha.');
+    return;
+  }
+
+  // Atualiza a base (dados do ERP). As anotações em state.followup são preservadas:
+  // como são indexadas por Nº do Pedido + Cód. Item, nada do que foi escrito é apagado.
+  state.followupBase = res.linhas;
+
+  // Se o arquivo trouxe anotações (arquivo exportado pelo sistema), mescla SEM sobrescrever
+  // o que já existe no sistema, a não ser que o sistema não tenha nada para aquela chave.
+  let restauradas = 0;
+  Object.entries(res.anotacoesArquivo).forEach(([chave, anot]) => {
+    const atual = state.followup[chave];
+    const atualVazio = !atual || (!atual.dataEntrega && (!atual.situacao || atual.situacao === 'pendente') && !atual.obs && !atual.qtdEntregue);
+    if (atualVazio) { state.followup[chave] = anot; restauradas++; }
+  });
+
+  state.lastUpdate.followup = new Date().toISOString();
+  await saveEntity('followupBase');
+  await saveEntity('followup');
+  await saveEntity('lastUpdate');
+
+  const comAnot = res.linhas.filter(l => {
+    const a = state.followup[l.chave];
+    return a && (a.dataEntrega || (a.situacao && a.situacao !== 'pendente') || a.obs || a.qtdEntregue);
+  }).length;
+
+  fupLog('ok', `${res.linhas.length} itens em aberto carregados. ${comAnot} já têm anotações preservadas${restauradas ? ` (${restauradas} restauradas do arquivo)` : ''}.`);
+  updateStamp();
+  renderFollowup();
+}
+
+function fupLog(type, msg) {
+  const box = document.getElementById('followupLog');
+  if (!box) return;
+  const div = document.createElement('div');
+  div.className = 'update-log-item ' + (type === 'ok' ? 'ok' : 'error');
+  div.textContent = (type === 'ok' ? '✓ ' : '✕ ') + msg;
+  box.prepend(div);
+  setTimeout(() => { div.style.opacity = '0.6'; }, 6000);
+}
+
+// Junta base + anotação e calcula o status efetivo de cada linha.
+function fupLinhasComputadas() {
+  const hoje = todayISO();
+  return (state.followupBase || []).map(b => {
+    const a = state.followup[b.chave] || {};
+    const dataEntrega = a.dataEntrega || b.dataPrevista || '';
+    const situacao = a.situacao || 'pendente';
+    let status, ordem;
+    if (situacao === 'entregue') { status = 'entregue'; ordem = 4; }
+    else if (situacao === 'parcial') { status = 'parcial'; ordem = 1; }
+    else if (dataEntrega && dataEntrega < hoje) { status = 'atrasado'; ordem = 0; }
+    else { status = 'pendente'; ordem = 2; }
+    return { ...b, dataEntrega, situacao, qtdEntregue: a.qtdEntregue || 0, obs: a.obs || '', status, ordem };
+  });
+}
+
+function renderFollowup() {
+  const tbody = document.getElementById('fupTbody');
+  if (!tbody) return;
+  const kpis = document.getElementById('followupKpis');
+
+  // stamp
+  const stamp = document.getElementById('followupStamp');
+  if (state.lastUpdate.followup) {
+    const d = new Date(state.lastUpdate.followup);
+    stamp.textContent = `Planilha carregada em ${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`;
+  } else stamp.textContent = '';
+
+  if (!state.followupBase || !state.followupBase.length) {
+    kpis.style.display = 'none';
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-dim)">Nenhuma planilha carregada ainda. Arraste o relatório do SAP acima para começar.</td></tr>`;
+    return;
+  }
+
+  let linhas = fupLinhasComputadas();
+  const hoje = todayISO();
+
+  // KPIs (sobre todo o universo em aberto)
+  kpis.style.display = 'flex';
+  const naoEntregue = linhas.filter(l => l.situacao !== 'entregue');
+  document.getElementById('fupKpiTotal').textContent = fmt(linhas.length);
+  document.getElementById('fupKpiAtraso').textContent = fmt(linhas.filter(l => l.status === 'atrasado').length);
+  document.getElementById('fupKpiEntregue').textContent = fmt(linhas.filter(l => l.situacao === 'entregue').length);
+  document.getElementById('fupKpiParcial').textContent = fmt(linhas.filter(l => l.situacao === 'parcial').length);
+  document.getElementById('fupKpiValor').textContent = 'R$ ' + fmt(naoEntregue.reduce((s, l) => s + (l.valorAberto || 0), 0), 0);
+
+  // filtro
+  const f = state.fupFilter;
+  if (f === 'pendente') linhas = linhas.filter(l => l.situacao !== 'entregue');
+  else if (f === 'atrasado') linhas = linhas.filter(l => l.status === 'atrasado');
+  else if (f === 'parcial') linhas = linhas.filter(l => l.situacao === 'parcial');
+  else if (f === 'entregue') linhas = linhas.filter(l => l.situacao === 'entregue');
+  else if (f === 'semana') {
+    const lim = addDaysISO(hoje, 7);
+    linhas = linhas.filter(l => l.situacao !== 'entregue' && l.dataEntrega && l.dataEntrega <= lim);
+  }
+
+  // busca
+  const q = norm(state.fupSearch);
+  if (q) linhas = linhas.filter(l =>
+    norm(l.numero).includes(q) || norm(l.item).includes(q) ||
+    norm(l.fornecedor).includes(q) || norm(l.codItem).includes(q)
+  );
+
+  // ordena: atrasados/parciais primeiro, depois por data de entrega
+  linhas.sort((a, b) => (a.ordem - b.ordem) || String(a.dataEntrega).localeCompare(String(b.dataEntrega)));
+
+  if (!linhas.length) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-dim)">Nenhum item para este filtro.</td></tr>`;
+    return;
+  }
+
+  const badge = { atrasado: 'badge-crit', pendente: 'badge-info', parcial: 'badge-warn', entregue: 'badge-ok' };
+  const rotulo = { atrasado: 'Atrasado', pendente: 'Em aberto', parcial: 'Parcial', entregue: 'Entregue' };
+
+  tbody.innerHTML = linhas.map(l => {
+    const ajustada = state.followup[l.chave] && state.followup[l.chave].dataEntrega;
+    const dataCell = l.dataEntrega
+      ? `${fmtDate(l.dataEntrega)}${ajustada ? ' <span class="badge badge-info" title="Data ajustada manualmente">ajust.</span>' : ''}`
+      : '—';
+    const parcialInfo = l.situacao === 'parcial' && l.qtdEntregue
+      ? `<div style="font-size:10px;color:var(--warn);margin-top:2px">${fmt(l.qtdEntregue)} de ${fmt(l.qtde)}</div>` : '';
+    const obsCell = l.obs
+      ? `<span title="${l.obs.replace(/"/g, '&quot;')}">${l.obs.length > 60 ? l.obs.slice(0, 60) + '…' : l.obs}</span>`
+      : '<span style="color:var(--text-dim)">—</span>';
+    const rowCls = l.status === 'atrasado' ? 'row-crit' : (l.status === 'parcial' ? 'row-warn' : '');
+    return `<tr class="${rowCls}">
+      <td class="mono">${l.numero}</td>
+      <td>${l.item || '<span style="color:var(--text-dim)">—</span>'}${l.codItem ? `<div style="font-size:10px;color:var(--text-dim)" class="mono">cód ${l.codItem}</div>` : ''}</td>
+      <td style="font-size:12px">${l.fornecedor || '—'}</td>
+      <td class="right mono">${fmt(l.qtdeAberta)}${parcialInfo}</td>
+      <td class="right mono">${l.valorAberto ? 'R$ ' + fmt(l.valorAberto, 2) : '—'}</td>
+      <td class="mono" style="font-size:12px">${dataCell}</td>
+      <td><span class="badge ${badge[l.status]}">${rotulo[l.status]}</span></td>
+      <td style="font-size:12px;max-width:220px">${obsCell}</td>
+      <td class="center"><button class="btn btn-sm" data-fup-edit="${l.chave}">✏️ Editar</button></td>
+    </tr>`;
+  }).join('');
+
+  tbody.querySelectorAll('[data-fup-edit]').forEach(b => b.onclick = () => abrirFollowupEdit(b.dataset.fupEdit));
+}
+
+function abrirFollowupEdit(chave) {
+  const base = state.followupBase.find(b => b.chave === chave);
+  if (!base) return;
+  state.fupEditKey = chave;
+  const a = state.followup[chave] || {};
+
+  document.getElementById('modalFollowupTitle').textContent = `Pedido ${base.numero} — ${base.item || base.codItem || ''}`.slice(0, 70);
+  document.getElementById('fupEditInfo').innerHTML =
+    `<b>Fornecedor:</b> ${base.fornecedor || '—'}<br>` +
+    `<b>Cód. Item:</b> ${base.codItem || '—'} &nbsp;·&nbsp; <b>Qtde Aberta:</b> ${fmt(base.qtdeAberta)} de ${fmt(base.qtde)}<br>` +
+    `<b>Previsão original (SAP):</b> ${fmtDate(base.dataPrevista) || '—'}`;
+
+  document.getElementById('fupEditData').value = a.dataEntrega || base.dataPrevista || '';
+  document.getElementById('fupEditDataHint').textContent = base.dataPrevista ? `Previsão do SAP: ${fmtDate(base.dataPrevista)}` : '';
+  document.getElementById('fupEditSituacao').value = a.situacao || 'pendente';
+  document.getElementById('fupEditQtdEntregue').value = a.qtdEntregue || '';
+  document.getElementById('fupEditObs').value = a.obs || '';
+  fupToggleQtd();
+  openModal('modalFollowup');
+}
+
+function fupToggleQtd() {
+  const parcial = document.getElementById('fupEditSituacao').value === 'parcial';
+  document.getElementById('fupEditQtdWrap').style.display = parcial ? '' : 'none';
+}
+
+async function salvarFollowup() {
+  const chave = state.fupEditKey;
+  if (!chave) return;
+  const situacao = document.getElementById('fupEditSituacao').value;
+  const anot = {
+    dataEntrega: document.getElementById('fupEditData').value || '',
+    situacao,
+    qtdEntregue: situacao === 'parcial' ? toNum(document.getElementById('fupEditQtdEntregue').value) : 0,
+    obs: document.getElementById('fupEditObs').value.trim(),
+    atualizadoEm: new Date().toISOString(),
+  };
+  state.followup[chave] = anot;
+  await saveEntity('followup');
+  closeModal('modalFollowup');
+  renderFollowup();
+}
+
+async function limparFollowup() {
+  const chave = state.fupEditKey;
+  if (!chave) return;
+  delete state.followup[chave];
+  await saveEntity('followup');
+  closeModal('modalFollowup');
+  renderFollowup();
+}
+
+// Exporta a planilha já atualizada (base do SAP + anotações). Esse arquivo pode ser
+// recarregado depois e as anotações voltam.
+function exportarFollowup() {
+  if (!state.followupBase || !state.followupBase.length) {
+    fupLog('error', 'Carregue uma planilha antes de exportar.');
+    return;
+  }
+  const linhas = fupLinhasComputadas();
+  const rotuloSit = { pendente: 'Em aberto', parcial: 'Parcial', entregue: 'Entregue', atrasado: 'Em aberto' };
+  const head = ['Nº do Pedido', 'Cód. Item', 'Item', 'Fornecedor', 'Comprador', 'Qtde', 'Qtde Aberta',
+    'Valor Aberto Linha', 'Saldo Aberto do Pedido', 'Data do Pedido', 'Data de Entrega Prevista',
+    'Data Entrega Ajustada', 'Situação', 'Qtde Entregue', 'Observações', 'Atualizado em'];
+  const rows = [head];
+  linhas.forEach(l => {
+    const a = state.followup[l.chave] || {};
+    rows.push([
+      l.numero, l.codItem, l.item, l.fornecedor, l.comprador, l.qtde, l.qtdeAberta,
+      l.valorAberto, l.saldoAberto, l.dataPedido || '', l.dataPrevista || '',
+      a.dataEntrega || '', rotuloSit[l.situacao] || 'Em aberto', l.qtdEntregue || '',
+      l.obs || '', a.atualizadoEm ? new Date(a.atualizadoEm).toLocaleString('pt-BR') : '',
+    ]);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:10},{wch:10},{wch:38},{wch:26},{wch:16},{wch:10},{wch:11},{wch:14},{wch:16},{wch:13},{wch:15},{wch:15},{wch:12},{wch:12},{wch:34},{wch:18}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Follow-up');
+  XLSX.writeFile(wb, `followup_compras_${todayISO()}.xlsx`);
+}
+
+// ============================================================
+// EVENTS / INIT
+// ============================================================
+function setupDropzones() {
+  document.querySelectorAll('.dropzone').forEach(dz => {
+    const inp = dz.querySelector('input[type="file"]');
+    ['dragenter','dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('dragover'); }));
+    ['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('dragover'); }));
+    dz.addEventListener('drop', e => {
+      const f = e.dataTransfer.files[0];
+      if (f) { if (inp.dataset.slot === 'followup') handleUploadFollowup(f); else handleUpload(f, inp.dataset.slot); }
+    });
+    inp.addEventListener('change', e => {
+      const f = e.target.files[0];
+      if (f) { if (inp.dataset.slot === 'followup') handleUploadFollowup(f); else handleUpload(f, inp.dataset.slot); }
+    });
+  });
+}
+
+function setupEvents() {
+  // Drawer
+  document.getElementById('btnMenu').onclick = () => {
+    document.getElementById('drawer').classList.add('show');
+    document.getElementById('drawerBackdrop').classList.add('show');
+  };
+  document.getElementById('btnDrawerClose').onclick = () => {
+    document.getElementById('drawer').classList.remove('show');
+    document.getElementById('drawerBackdrop').classList.remove('show');
+  };
+  document.getElementById('drawerBackdrop').onclick = () => {
+    document.getElementById('drawer').classList.remove('show');
+    document.getElementById('drawerBackdrop').classList.remove('show');
+  };
+  document.querySelectorAll('.nav-item').forEach(n => n.onclick = () => showView(n.dataset.view));
+
+  // Header
+  document.getElementById('btnExport').onclick = exportarBackup;
+  document.getElementById('btnImport').onclick = () => document.getElementById('importFileHidden').click();
+  document.getElementById('btnBackupGit').onclick = exportarBackupGit;
+  document.getElementById('btnExport2').onclick = exportarBackup;
+  document.getElementById('btnImport2').onclick = () => document.getElementById('importFileHidden').click();
+  document.getElementById('importFileHidden').onchange = (e) => {
+    const f = e.target.files[0];
+    if (f) importarBackup(f);
+    e.target.value = '';
+  };
+
+  // PCP backup
+  document.getElementById('btnImportPcp').onclick = () => document.getElementById('filePcpBackup').click();
+  document.getElementById('filePcpBackup').onchange = (e) => {
+    const f = e.target.files[0];
+    if (f) importarBackupPcp(f);
+    e.target.value = '';
+  };
+
+  // Modais close
+  document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => closeModal(b.dataset.close));
+
+  // Sugestão
+  document.getElementById('paramVenda').onchange = renderAll;
+  document.getElementById('paramGatilho').onchange = renderAll;
+  document.getElementById('paramCobertura').onchange = renderAll;
+  document.getElementById('btnRecalcSug').onclick = renderAll;
+  document.getElementById('btnExportSugCSV').onclick = exportarSugestaoExcel;
+  document.getElementById('sugSearch').oninput = (e) => { state.sugSearch = e.target.value; renderSugestao(); };
+  document.querySelectorAll('[data-sug-filter]').forEach(b => b.onclick = () => {
+    state.sugFilter = b.dataset.sugFilter;
+    document.querySelectorAll('[data-sug-filter]').forEach(x => x.classList.toggle('active', x === b));
+    renderSugestao();
+  });
+  document.querySelectorAll('[data-sort-sug]').forEach(th => th.onclick = () => {
+    const k = th.dataset.sortSug;
+    if (state.sugSortKey === k) state.sugSortDir = state.sugSortDir === 'desc' ? 'asc' : 'desc';
+    else { state.sugSortKey = k; state.sugSortDir = 'desc'; }
+    renderSugestao();
+  });
+
+  // Andamento
+  document.getElementById('andSearch').oninput = (e) => { state.andSearch = e.target.value; renderAndamento(); };
+  document.querySelectorAll('[data-and-filter]').forEach(b => b.onclick = () => {
+    state.andFilter = b.dataset.andFilter;
+    document.querySelectorAll('[data-and-filter]').forEach(x => x.classList.toggle('active', x === b));
+    renderAndamento();
+  });
+
+  // Follow-up de entregas
+  document.getElementById('btnExportFollowup').onclick = exportarFollowup;
+  document.getElementById('fupSearch').oninput = (e) => { state.fupSearch = e.target.value; renderFollowup(); };
+  document.querySelectorAll('[data-fup-filter]').forEach(b => b.onclick = () => {
+    state.fupFilter = b.dataset.fupFilter;
+    document.querySelectorAll('[data-fup-filter]').forEach(x => x.classList.toggle('active', x === b));
+    renderFollowup();
+  });
+  document.getElementById('fupEditSituacao').onchange = fupToggleQtd;
+  document.getElementById('fupBtnSalvar').onclick = salvarFollowup;
+  document.getElementById('fupBtnLimpar').onclick = limparFollowup;
+  document.getElementById('btnNovoPedido').onclick = () => abrirModalPedido();  document.getElementById('btnTemplatePedido').onclick = baixarTemplatePedido;
+  document.getElementById('btnImportarPedido').onclick = () => document.getElementById('filePedido').click();
+  document.getElementById('filePedido').onchange = (e) => {
+    const f = e.target.files[0];
+    if (f) importarPedidos(f);
+    e.target.value = '';
+  };
+  document.getElementById('btnSalvarPedido').onclick = salvarPedido;
+
+  // Histórico
+  document.getElementById('histSearch').oninput = (e) => { state.histSearch = e.target.value; renderHistorico(); };
+  document.querySelectorAll('[data-hist-filter]').forEach(b => b.onclick = () => {
+    state.histFilter = b.dataset.histFilter;
+    document.querySelectorAll('[data-hist-filter]').forEach(x => x.classList.toggle('active', x === b));
+    renderHistorico();
+  });
+
+  // Engenharia
+  document.getElementById('engSearch').oninput = (e) => { state.engSearch = e.target.value; renderEngenharias(); };
+  document.querySelectorAll('[data-eng-filter]').forEach(b => b.onclick = () => {
+    state.engFilter = b.dataset.engFilter;
+    document.querySelectorAll('[data-eng-filter]').forEach(x => x.classList.toggle('active', x === b));
+    renderEngenharias();
+  });
+  document.getElementById('btnAddBom').onclick = () => {
+    state.engEditingBom.push({ sku: null, qtd: 1, unidade: 'UN', tipo: 'OUTRO' });
+    renderEngEdit();
+  };
+  document.getElementById('btnSalvarEng').onclick = async () => {
+    if (!state.engEditingProd) return;
+    // Filtra itens com SKU válido
+    const bom = state.engEditingBom.filter(b => b.sku && b.qtd > 0);
+    if (bom.length > 0) state.engenharia[state.engEditingProd] = bom;
+    else delete state.engenharia[state.engEditingProd];
+    await saveEntity('engenharia');
+    closeModal('modalEng');
+    renderAll();
+  };
+
+  // Insumos
+  document.getElementById('insSearch').oninput = (e) => { state.insSearch = e.target.value; renderInsumos(); };
+  document.getElementById('insCatFilter').onchange = (e) => { state.insCatFilter = e.target.value; renderInsumos(); };
+
+  // Kits compartilhados
+  document.querySelectorAll('[data-kit-tab]').forEach(b => b.onclick = () => {
+    state.kitTabAtual = b.dataset.kitTab;
+    document.querySelectorAll('[data-kit-tab]').forEach(x => x.classList.toggle('active', x === b));
+    document.querySelectorAll('.kit-tab').forEach(el => el.classList.add('hidden'));
+    document.getElementById('kitTab-' + state.kitTabAtual).classList.remove('hidden');
+    renderKits();
+  });
+  document.getElementById('btnNovoKit').onclick = () => abrirModalKit(null);
+  document.getElementById('btnResetKits').onclick = async () => {
+    if (!confirm('Restaurar os kits padrão? Isso vai sobrescrever qualquer alteração que você fez nos kits existentes. Overrides por produto não são afetados.')) return;
+    state.kitsCompartilhados = JSON.parse(JSON.stringify(KITS_DEFAULT));
+    await saveEntity('kitsCompartilhados');
+    renderAll();
+  };
+  document.getElementById('kitProdSearch').oninput = (e) => { state.kitProdSearch = e.target.value; renderKitProdList(); };
+  document.getElementById('btnAddKitBom').onclick = () => {
+    state.kitEditingBom.push({ sku: null, qtd: 1, unidade: 'UN', tipo: 'OUTRO' });
+    renderKitEditBom();
+  };
+  document.getElementById('btnSalvarKit').onclick = async () => {
+    const id = document.getElementById('kitEditId').value.trim().toUpperCase().replace(/\s+/g, '_');
+    if (!id) { alert('Informe um ID para o kit (ex: VIP_50ML)'); return; }
+    const nome = document.getElementById('kitEditNome').value.trim();
+    const descricao = document.getElementById('kitEditDesc').value.trim();
+    const bom = state.kitEditingBom.filter(b => b.sku && b.qtd > 0);
+    state.kitsCompartilhados[id] = { nome: nome || id, descricao, bom };
+    await saveEntity('kitsCompartilhados');
+    closeModal('modalKit');
+    renderAll();
+  };
+  document.getElementById('btnDeleteKit').onclick = async () => {
+    if (!state.kitEditingId) return;
+    if (!confirm(`Excluir o kit "${state.kitEditingId}"? Os produtos da linha vão perder os insumos compartilhados (mas a engenharia explícita continua intacta).`)) return;
+    delete state.kitsCompartilhados[state.kitEditingId];
+    await saveEntity('kitsCompartilhados');
+    closeModal('modalKit');
+    renderAll();
+  };
+  document.getElementById('btnSalvarEscolherKit').onclick = async () => {
+    const sku = state.kitEscolhendoProdSku;
+    if (!sku) return;
+    const valor = document.getElementById('escolherKitSel').value;
+    if (valor === '__AUTO__') {
+      delete state.kitOverrides[sku];
+    } else {
+      state.kitOverrides[sku] = valor;
+    }
+    await saveEntity('kitOverrides');
+    closeModal('modalEscolherKit');
+    renderAll();
+  };
+}
+
+async function init() {
+  await loadAll();
+  setupDropzones();
+  setupEvents();
+  updateStamp();
+  renderAll();
+  showView('dashboard');
+  await carregarBackupDoRepo();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
